@@ -1,5 +1,12 @@
 
-const rbush = require('./rbush');
+import * as rbush from './rbush'
+
+
+declare class rbush {
+    constructor(maxEntries: number)
+    load(data:number[][])
+}
+
 
 // tslint:disable-next-line:class-name
 export class binrbush extends rbush {
@@ -11,7 +18,7 @@ export class binrbush extends rbush {
     }
 
     toBinary() {
-        const node = this.toJSON();
+        const node = (<any>this).toJSON();
         const buflen = binrbush.NODE_SIZE * this.nodeCount(node);
         const dv = new DataView(new ArrayBuffer(buflen));
         this.write(dv, node, 0);
