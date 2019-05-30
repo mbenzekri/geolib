@@ -1,5 +1,5 @@
 
-import * as rbush from './rbush'
+import { rbush } from './rbush'
 
 // tslint:disable-next-line:class-name
 export class binrbush extends rbush {

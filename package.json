@@ -4,7 +4,7 @@
     "description": "Library to handle Spatial Data file in Openlayers 3+ (shapefile, geojson, csv, ...)",
     "main": "index.js",
     "scripts": {
-        "build": "tsc -p ."
+        "build": "tsc"
     },
     "author": "Mohamed Ben Zekri",
     "license": "ISC",

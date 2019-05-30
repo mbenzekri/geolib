@@ -4,22 +4,19 @@
  https://github.com/mourner/rbush
 */
 
-(function () { 'use strict';
 
-function rbush(maxEntries, format) {
+class rbush {
 
-    // jshint newcap: false, validthis: true
-    if (!(this instanceof rbush)) return new rbush(maxEntries, format);
-
-    // max entries in a node is 9 by default; min node fill is 40% for best performance
-    this._maxEntries = Math.max(4, maxEntries || 9);
-    this._minEntries = Math.max(2, Math.ceil(this._maxEntries * 0.4));
-
-    if (format) {
-        this._initFormat(format);
+    constructor(maxEntries, format?) {
+        // max entries in a node is 9 by default; min node fill is 40% for best performance
+        (<any>this)._maxEntries = Math.max(4, maxEntries || 9);
+        (<any>this)._minEntries = Math.max(2, Math.ceil((<any>this)._maxEntries * 0.4));
+        if (format) {
+            (<any>this)._initFormat(format);
+        }
+        (<any>this).clear();
     }
 
-    this.clear();
 }
 
 rbush.prototype = {
@@ -345,7 +342,7 @@ rbush.prototype = {
             height: node.height
         };
 
-        if (node.leaf) newNode.leaf = true;
+        if (node.leaf) (<any>newNode).leaf = true;
 
         calcBBox(node, this.toBBox);
         calcBBox(newNode, this.toBBox);
@@ -606,10 +603,4 @@ function swap(arr, i, j) {
 }
 
 
-// export as AMD/CommonJS module or global variable
-if (typeof define === 'function' && define.amd) define('rbush', function() { return rbush; });
-else if (typeof module !== 'undefined') module.exports = rbush;
-else if (typeof self !== 'undefined') self.rbush = rbush;
-else window.rbush = rbush;
-
-})();
+export { rbush }

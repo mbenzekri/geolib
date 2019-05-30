@@ -995,7 +995,7 @@ export class GeofileIndexer {
         }
 
         const tree = new binrbush();
-        tree.load(this.clusters);
+        (<any>tree).load(this.clusters);
         const buffer = tree.toBinary();
         const metadata: GeofileIndexData = {
             attribute: 'geometry',

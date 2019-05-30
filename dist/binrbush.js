@@ -13,6 +13,7 @@ var __extends = (this && this.__extends) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
+var rbush_1 = require("./rbush");
 // tslint:disable-next-line:class-name
 var binrbush = /** @class */ (function (_super) {
     __extends(binrbush, _super);
@@ -100,6 +101,6 @@ var binrbush = /** @class */ (function (_super) {
     binrbush.RTREE_CHILD_MAX = 20;
     binrbush.NODE_SIZE = 25;
     return binrbush;
-}(rbush));
+}(rbush_1.rbush));
 exports.binrbush = binrbush;
 //# sourceMappingURL=binrbush.js.map

@@ -1,8 +1,4 @@
-import * as rbush from './rbush';
-declare class rbush {
-    constructor(maxEntries: number);
-    load(data: number[][]): any;
-}
+import { rbush } from './rbush';
 export declare class binrbush extends rbush {
     static readonly RTREE_CHILD_MAX = 20;
     static readonly NODE_SIZE = 25;
@@ -14,4 +10,3 @@ export declare class binrbush extends rbush {
     writeCluster(dv: DataView, leaf: number[], pos: number): number;
     dump(dv: DataView): void;
 }
-export {};
