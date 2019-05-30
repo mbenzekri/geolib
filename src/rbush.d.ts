@@ -1,6 +1,2 @@
-declare class rbush {
-    constructor(maxEntries: number)
-    load(data:number[][])
-}
-
+declare const rbush : any
 export { rbush }
