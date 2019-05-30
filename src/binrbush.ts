@@ -1,13 +1,6 @@
 
 import * as rbush from './rbush'
 
-
-declare class rbush {
-    constructor(maxEntries: number)
-    load(data:number[][])
-}
-
-
 // tslint:disable-next-line:class-name
 export class binrbush extends rbush {
     static readonly RTREE_CHILD_MAX = 20;
