@@ -67,7 +67,7 @@ export class Shapefile extends Geofile {
     /** dbf file name associated to the shapefile */
     get dbfname() { return this.filename.replace(/\.[^/.]+$/, '') + '.dbf'; }
 
-    static get(filename: string, opts: GeofileOptions = {}): Promise<Geofile> {
+    static async get(filename: string, opts: GeofileOptions = {}): Promise<Geofile> {
         const shapefile = new Shapefile(filename, opts);
         return shapefile.load();
     }
