@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 import proj4 from 'proj4';
 
 /**
@@ -140,7 +142,7 @@ export function intersects_emc(extent: number[], coords: number[][]): boolean {
 }
 
 /** intersect extent vs segment  */
-export function intersects_es(extent: number[], start: number[], end: number[], tolx: number = 0, toly: number = tolx): boolean {
+export function intersects_es(extent: number[], start: number[], end: number[], tolx = 0, toly = tolx): boolean {
     const dx = end[0] - start[0];
     const dy = end[1] - start[1];
     const aabbpx = (extent[0] + extent[2]) / 2;
@@ -163,13 +165,13 @@ export function intersects_es(extent: number[], start: number[], end: number[], 
 }
 
 /** intersect extent vs linestring  */
-export function intersects_el(extent: number[], linestring: number[][], tolx: number = 0, toly: number = tolx): boolean {
+export function intersects_el(extent: number[], linestring: number[][], tolx = 0, toly = tolx): boolean {
     return linestring.some((p, i, a) => (i + 1 < a.length) && intersects_es(extent, p, a[i + 1], tolx, toly));
 }
 
 /** intersect extent vs multilinestring */
-export function intersects_eml(extent: number[], mlinestring: number[][][], tolx: number = 0, toly: number = tolx): boolean {
-    return mlinestring.some((ls, i, a) => intersects_el(extent, ls, tolx, toly));
+export function intersects_eml(extent: number[], mlinestring: number[][][], tolx = 0, toly = tolx): boolean {
+    return mlinestring.some((ls) => intersects_el(extent, ls, tolx, toly));
 }
 
 
@@ -259,11 +261,11 @@ export function intersects_ss(start0: number[], end0: number[], start1: number[]
 }
 
 /** intersect coordinate vs coordinate  */
-export function intersects_cc(coord0: number[], coord1: number[], tolx: number = 0, toly: number = tolx): boolean {
+export function intersects_cc(coord0: number[], coord1: number[], tolx = 0, toly = tolx): boolean {
     return intersects_ec([coord1[0] - tolx, coord1[1] - toly, coord1[0] + tolx, coord1[1] + toly], coord0);
 }
 
-export function intersects_cmc(coord: number[], coords: number[][], tolx: number = 0, toly: number = tolx): boolean {
+export function intersects_cmc(coord: number[], coords: number[][], tolx = 0, toly = tolx): boolean {
     return coords.some(scoord => intersects_cc(coord, scoord, tolx, toly));
 }
 
@@ -274,24 +276,24 @@ export function intersects_cl(coord: number[], linestring: number[][]): boolean 
 
 /** intersect point vs multilinestring */
 export function intersects_cml(coord: number[], mlinestring: number[][][]): boolean {
-    return mlinestring.some((ls, i) => intersects_cl(coord, ls));
+    return mlinestring.some((ls) => intersects_cl(coord, ls));
 }
 
 /** 
  * intersect linear ring vs coordinate
  * use winding number algorithm :  https://en.wikipedia.org/wiki/Winding_number   
  */
-export function intersects_clr(coord: number[], linearring: number[][]) {
+export function intersects_clr(coord: number[], linearring: number[][]): boolean {
     function isLeft(pt0, pt1, pt2) {
-        var res = ((pt1[0] - pt0[0]) * (pt2[1] - pt0[1]) - (pt2[0] - pt0[0]) * (pt1[1] - pt0[1]));
+        const res = ((pt1[0] - pt0[0]) * (pt2[1] - pt0[1]) - (pt2[0] - pt0[0]) * (pt1[1] - pt0[1]));
         return res;
     }
-    var x = coord[0], y = coord[1];
-    var wn = 0;
+    const x = coord[0], y = coord[1];
+    let wn = 0;
 
-    for (var i = 0, j = linearring.length - 1; i < linearring.length; j = i++) {
-        var xi = linearring[i][0], yi = linearring[i][1];
-        var xj = linearring[j][0], yj = linearring[j][1];
+    for (let i = 0, j = linearring.length - 1; i < linearring.length; j = i++) {
+        const xi = linearring[i][0], yi = linearring[i][1];
+        const xj = linearring[j][0], yj = linearring[j][1];
 
         if (yj <= y) {
             if (yi > y) {
@@ -308,18 +310,18 @@ export function intersects_clr(coord: number[], linearring: number[][]) {
         }
     }
 
-    return wn != 0;
-};
+    return wn != 0
+}
 
 
-export function intersects_cp(coord: number[], polygon: number[][][]) {
+export function intersects_cp(coord: number[], polygon: number[][][]):boolean {
     // polygon exterior must intersect point but not holes
     const intext = intersects_clr(coord, polygon[0]);
     const inthole = polygon.some((lr, i) => (i === 0) ? false : intersects_clr(coord, lr));
     return intext && !inthole;
 }
 
-export function intersects_cmp(coord: number[], mpolygon: number[][][][]) {
+export function intersects_cmp(coord: number[], mpolygon: number[][][][]):boolean {
     return mpolygon.some(p => intersects_cp(coord, p));
 }
 
@@ -449,8 +451,9 @@ export function closest_cg(point: number[], geom: Geometry): number[] {
                 const current = closest_cg(point, igeom);
                 const idist = distance_sq(point, current);
                 if (idist < dist) { dist = idist; closest = current; }
-            });
-        };
+            })
+            return closest
+        }
     }
     return null;
 }

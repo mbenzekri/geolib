@@ -15,7 +15,7 @@ declare global {
         flatten(this: Array<T>, flat?: Array<T>): Array<T>;
     }
     interface PromiseConstructor {
-        cleanPromiseAll<T>(promises: any): any;
+        clean<T>(values: readonly (T | PromiseLike<T> | PromiseLike<T[]>)[]): Promise<T[]>;
     }
     interface Object {
         applyTo(to: Object): Object;

@@ -7,10 +7,12 @@
     "declaration": true,
     "module": "commonjs",
     "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
-    "target": "es5",
+    "target": "es2018",
     "typeRoots": [
       "node_modules/@types"
     ],
@@ -21,6 +23,5 @@
   },
   "include": [
     "./src/*.ts"
-  ],  
-
+  ]
 }

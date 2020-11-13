@@ -1,3 +1,8 @@
+/* eslint-disable no-extra-boolean-cast */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+
+import { StringDecoder } from "string_decoder";
 
 // mots de liaisons à supprimer (article, conjonctions, ...)
 const SUPPR = [
@@ -452,7 +457,7 @@ const CLEANPREFIX = [
 
 declare global {
     interface String {
-        levenshtein (this: string, str2: string): number;
+        levenshtein (this: string, str2: any): number;
         clean (this: string): string;
         wordlist (this: string): string[];
         prefix (this: string): string[];
@@ -467,12 +472,47 @@ declare global {
         flatten (this: Array<T>, flat?: Array<T>): Array<T>;
     }
     interface PromiseConstructor {
-        cleanPromiseAll<T> (promises: any): any;
+        clean<T>(values: readonly (T | PromiseLike<T>| PromiseLike<T[]>)[]): Promise<T[]>;
     }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     interface Object {
-        applyTo (to: Object): Object;
+        // eslint-disable-next-line @typescript-eslint/ban-types
+        applyTo (to: Object ): Object;
+    }
+
+    interface DataView {
+        getUtf8(offset:number,length:number): string;
+        setAscii(offset: number, str: string, length?: number):void
+        getAscii(offset: number, length: number):string
     }
 }
+
+DataView.prototype.setAscii = function( offset: number, str: string, length = str.length)  {
+    length = Math.min(str.length, length)
+    for (let i = 0; i < length; i++) this.setUint8(offset + i, str.charCodeAt(i));
+}
+
+DataView.prototype.getAscii = function( offset: number, length: number)  {
+    const array:string[] = [] 
+    for (let i = 0; i < length; i++) array.push(String.fromCharCode(this.getUint8(offset + i)))
+    return array.join('');
+}
+
+
+
+
+DataView.prototype.getUtf8 = function(offset:number,length:number): string {
+    if (window.TextDecoder) {
+        const td = new TextDecoder();
+        const buffer = this.buffer.slice(this.byteOffset, this.byteOffset + this.byteLength).slice(offset, offset + length)
+        return td.decode(buffer).trimzero();
+    } else {
+        const sd = new StringDecoder();
+        const buffer = this.buffer.slice(this.byteOffset, this.byteOffset + this.byteLength).slice(offset, offset + length)
+        return sd.end(Buffer.from(buffer)).trimzero();
+    }
+}
+
 
 String.prototype.trimzero = function (this: string): string {
     return this.replace(/\000/g, '');
@@ -485,8 +525,10 @@ String.prototype.titlecase = function (this: string): string {
     ).trim();
 };
 
-String.prototype.levenshtein = function levenshtein (this: string, str2: string): number {
-    const m = this.length;
+String.prototype.levenshtein = function levenshtein (this: string, str2: any): number {
+    const str1 = this.clean()
+    str2 = str2.toString().clean()
+    const m = str1.length;
     const n = str2.length;
     const d = [];
 
@@ -498,7 +540,7 @@ String.prototype.levenshtein = function levenshtein (this: string, str2: string)
 
     for (let j = 1; j <= n; j++) {
         for (let i = 1; i <= m; i++) {
-            if (this[i - 1] === str2[j - 1]) {
+            if (str1[i - 1] === str2[j - 1]) {
                 d[i][j] = d[i - 1][j - 1]; } else { d[i][j] = Math.min(d[i - 1][j], d[i][j - 1], d[i - 1][j - 1]) + 1;
             }
         }
@@ -543,7 +585,7 @@ String.prototype.fuzzyhash =  function (this: string): number {
     const bits = [];
     let c, i;
     for (i = 0; i < ALPHANUM.length; i++) { bits[i] = '0'; }
-    for (i = 0; c = cleaned.charAt(i); i++) { bits[ALPHANUM.length - 1 - ALPHANUM.indexOf(c)] = '1'; }
+    for (i = 0; !!(c = cleaned.charAt(i)); i++) { bits[ALPHANUM.length - 1 - ALPHANUM.indexOf(c)] = '1'; }
     const str = bits.join('');
     const code = parseInt(str, 2);
     // console.log ("["+value+"]/["+cleaned+"]/["+str+"] => "+code);
@@ -581,13 +623,8 @@ Array.prototype.flatten = function<T> (this: Array<T>, flat = new Array<T>()): A
  * @param promises - array to promise
  * @returns promise which resolve result will be flattened
  */
- Promise.cleanPromiseAll = function<T>(promises: any): any {
-    return  Promise.all(promises)
-            .then((array) => {
-                return array.flatten();
-            }, (e) => {
-                return Promise.resolve([]);
-            });
+Promise.clean = function(promises: any): any {
+    return  Promise.all(promises).then(array =>  array.flatten() , () =>  Promise.resolve([]) );
 };
 
 
@@ -608,6 +645,7 @@ Array.prototype.flatten = function<T> (this: Array<T>, flat = new Array<T>()): A
 // alors utilisez la syntaxe suivante
 Object.defineProperty(Object.prototype, 'applyTo',
   <PropertyDescriptor>{
+    // eslint-disable-next-line @typescript-eslint/ban-types
     value: function (this: Object, to: Object = {}): Object {
         Object.keys(this).forEach((key) => {
             if (!(key in to)) { to[key] = this[key]; }
@@ -619,7 +657,7 @@ Object.defineProperty(Object.prototype, 'applyTo',
   }
 );
 
-function _() {}
+function _(): void {return}
 
 
 export { _ };

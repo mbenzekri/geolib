@@ -1,5 +1,5 @@
-
-/*
+/* eslint-disable */ 
+ /*
     Binary Rtree search class. Allow for spatial searching in rtree stored in an arraybuffer.
     this rtree is first produced by rbush ((c) 2013, Vladimir Agafonkin)) and then transform
     in binary format an arraybuffer.
@@ -49,19 +49,19 @@ export class BinRtree {
     dv: DataView;
     constructor(dataview: DataView) { this.dv = dataview; }
     extent() {
-        return [this.dv.getFloat32(1), this.dv.getFloat32(5),
-        this.dv.getFloat32(9), this.dv.getFloat32(13)];
+        return [this.dv.getFloat32(1,true), this.dv.getFloat32(5,true),
+        this.dv.getFloat32(9,true), this.dv.getFloat32(13,true)];
     }
     isnode(node: number) { return (this.height(node) > 1); }
     isleaf(node: number) { return (this.height(node) === 1); }
     iscluster(node: number) { return (this.height(node) === 0); }
     height(node: number) { return this.dv.getUint8(node); }
-    child(node: number) { return this.dv.getUint32(node + 17); }
+    child(node: number) { return this.dv.getUint32(node + 17,true); }
     cluster(node: number) {
         return [
-            this.dv.getFloat32(node + 1), this.dv.getFloat32(node + 5),
-            this.dv.getFloat32(node + 9), this.dv.getFloat32(node + 13),
-            this.dv.getUint32(node + 17), this.dv.getUint32(node + 21)
+            this.dv.getFloat32(node + 1,true), this.dv.getFloat32(node + 5,true),
+            this.dv.getFloat32(node + 9,true), this.dv.getFloat32(node + 13,true),
+            this.dv.getUint32(node + 17,true), this.dv.getUint32(node + 21,true)
         ];
     }
     next(node: number) {
@@ -85,17 +85,17 @@ export class BinRtree {
     }
 
     contains(a, node) {
-        return  a[0] <= this.dv.getFloat32(node + 1) &&
-                a[1] <= this.dv.getFloat32(node + 5) &&
-                this.dv.getFloat32(node + 9) <= a[2] &&
-                this.dv.getFloat32(node + 13) <= a[3];
+        return  a[0] <= this.dv.getFloat32(node + 1,true) &&
+                a[1] <= this.dv.getFloat32(node + 5,true) &&
+                this.dv.getFloat32(node + 9,true) <= a[2] &&
+                this.dv.getFloat32(node + 13,true) <= a[3];
     }
 
     intersects(a, node) {
-        return  this.dv.getFloat32(node + 1) <= a[2] &&
-                this.dv.getFloat32(node + 5) <= a[3] &&
-                this.dv.getFloat32(node + 9) >= a[0] &&
-                this.dv.getFloat32(node + 13) >= a[1];
+        return  this.dv.getFloat32(node + 1,true) <= a[2] &&
+                this.dv.getFloat32(node + 5,true) <= a[3] &&
+                this.dv.getFloat32(node + 9,true) >= a[0] &&
+                this.dv.getFloat32(node + 13,true) >= a[1];
     }
 
     _all(node, result) {

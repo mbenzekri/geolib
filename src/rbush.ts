@@ -1,4 +1,5 @@
-/*
+ /* eslint-disable */ 
+ /*
  (c) 2013, Vladimir Agafonkin
  RBush, a JavaScript library for high-performance 2D spatial indexing of points and rectangles.
  https://github.com/mourner/rbush
@@ -6,7 +7,9 @@
 
 
 class rbush {
-
+    data : any 
+    _maxEntries: number
+    _minEntries: number
     constructor(maxEntries, format?) {
         // max entries in a node is 9 by default; min node fill is 40% for best performance
         (<any>this)._maxEntries = Math.max(4, maxEntries || 9);
@@ -16,16 +19,11 @@ class rbush {
         }
         (<any>this).clear();
     }
-
-}
-
-rbush.prototype = {
-
-    all: function () {
+    all () {
         return this._all(this.data, []);
-    },
+    }
 
-    search: function (bbox) {
+    search (bbox) {
 
         var node = this.data,
             result = [],
@@ -52,9 +50,9 @@ rbush.prototype = {
         }
 
         return result;
-    },
+    }
 
-    collides: function (bbox) {
+    collides (bbox) {
 
         var node = this.data,
             toBBox = this.toBBox;
@@ -79,9 +77,9 @@ rbush.prototype = {
         }
 
         return false;
-    },
+    }
 
-    load: function (data) {
+    load (data) {
         if (!(data && data.length)) return this;
 
         if (data.length < this._minEntries) {
@@ -115,14 +113,14 @@ rbush.prototype = {
         }
 
         return this;
-    },
+    }
 
-    insert: function (item) {
-        if (item) this._insert(item, this.data.height - 1);
+    insert (item) {
+        if (item) this._insert(item, this.data.height - 1,undefined);
         return this;
-    },
+    }
 
-    clear: function () {
+    clear () {
         this.data = {
             children: [],
             height: 1,
@@ -130,9 +128,9 @@ rbush.prototype = {
             leaf: true
         };
         return this;
-    },
+    }
 
-    remove: function (item) {
+    remove (item) {
         if (!item) return this;
 
         var node = this.data,
@@ -179,21 +177,21 @@ rbush.prototype = {
         }
 
         return this;
-    },
+    }
 
-    toBBox: function (item) { return item; },
+    toBBox (item) { return item; }
 
-    compareMinX: function (a, b) { return a[0] - b[0]; },
-    compareMinY: function (a, b) { return a[1] - b[1]; },
+    compareMinX (a, b) { return a[0] - b[0]; }
+    compareMinY (a, b) { return a[1] - b[1]; }
 
-    toJSON: function () { return this.data; },
+    toJSON () { return this.data; }
 
-    fromJSON: function (data) {
+    fromJSON (data) {
         this.data = data;
         return this;
-    },
+    }
 
-    _all: function (node, result) {
+    _all (node, result) {
         var nodesToSearch = [];
         while (node) {
             if (node.leaf) result.push.apply(result, node.children);
@@ -202,9 +200,9 @@ rbush.prototype = {
             node = nodesToSearch.pop();
         }
         return result;
-    },
+    }
 
-    _build: function (items, left, right, height) {
+    _build (items, left, right, height) {
 
         var N = right - left + 1,
             M = this._maxEntries,
@@ -264,9 +262,9 @@ rbush.prototype = {
         calcBBox(node, this.toBBox);
 
         return node;
-    },
+    }
 
-    _chooseSubtree: function (bbox, node, level, path) {
+    _chooseSubtree (bbox, node, level, path) {
 
         var i, len, child, targetNode, area, enlargement, minArea, minEnlargement;
 
@@ -301,9 +299,9 @@ rbush.prototype = {
         }
 
         return node;
-    },
+    }
 
-    _insert: function (item, level, isNode) {
+    _insert (item, level, isNode) {
 
         var toBBox = this.toBBox,
             bbox = isNode ? item.bbox : toBBox(item),
@@ -326,10 +324,10 @@ rbush.prototype = {
 
         // adjust bboxes along the insertion path
         this._adjustParentBBoxes(bbox, insertPath, level);
-    },
+    }
 
     // split overflowed node into two
-    _split: function (insertPath, level) {
+    _split (insertPath, level) {
 
         var node = insertPath[level],
             M = node.children.length,
@@ -349,18 +347,18 @@ rbush.prototype = {
 
         if (level) insertPath[level - 1].children.push(newNode);
         else this._splitRoot(node, newNode);
-    },
+    }
 
-    _splitRoot: function (node, newNode) {
+    _splitRoot (node, newNode) {
         // split root node
         this.data = {
             children: [node, newNode],
             height: node.height + 1
         };
         calcBBox(this.data, this.toBBox);
-    },
+    }
 
-    _chooseSplitIndex: function (node, m, M) {
+    _chooseSplitIndex (node, m, M) {
 
         var i, bbox1, bbox2, overlap, area, minOverlap, minArea, index;
 
@@ -390,10 +388,10 @@ rbush.prototype = {
         }
 
         return index;
-    },
+    }
 
     // sorts node children by the best axis for split
-    _chooseSplitAxis: function (node, m, M) {
+    _chooseSplitAxis (node, m, M) {
 
         var compareMinX = node.leaf ? this.compareMinX : compareNodeMinX,
             compareMinY = node.leaf ? this.compareMinY : compareNodeMinY,
@@ -403,10 +401,10 @@ rbush.prototype = {
         // if total distributions margin value is minimal for x, sort by minX,
         // otherwise it's already sorted by minY
         if (xMargin < yMargin) node.children.sort(compareMinX);
-    },
+    }
 
     // total margin of all possible split distributions where each node is at least m full
-    _allDistMargin: function (node, m, M, compare) {
+    _allDistMargin (node, m, M, compare) {
 
         node.children.sort(compare);
 
@@ -429,16 +427,16 @@ rbush.prototype = {
         }
 
         return margin;
-    },
+    }
 
-    _adjustParentBBoxes: function (bbox, path, level) {
+    _adjustParentBBoxes (bbox, path, level) {
         // adjust bboxes along the given tree path
         for (var i = level; i >= 0; i--) {
             extend(path[i].bbox, bbox);
         }
-    },
+    }
 
-    _condense: function (path) {
+    _condense (path) {
         // go through the path, removing empty nodes and updating bboxes
         for (var i = path.length - 1, siblings; i >= 0; i--) {
             if (path[i].children.length === 0) {
@@ -450,9 +448,9 @@ rbush.prototype = {
 
             } else calcBBox(path[i], this.toBBox);
         }
-    },
+    }
 
-    _initFormat: function (format) {
+    _initFormat (format) {
         // data format (minX, minY, maxX, maxY accessors)
 
         // uses eval-type function compilation instead of just accepting a toBBox function
@@ -463,10 +461,9 @@ rbush.prototype = {
 
         var compareArr = ['return a', ' - b', ';'];
 
-        this.compareMinX = new Function('a', 'b', compareArr.join(format[0]));
-        this.compareMinY = new Function('a', 'b', compareArr.join(format[1]));
-
-        this.toBBox = new Function('a', 'return [a' + format.join(', a') + '];');
+        (this.compareMinX as any) = new Function('a', 'b', compareArr.join(format[0]));
+        (this.compareMinY as any) = new Function('a', 'b', compareArr.join(format[1]));
+        (this.toBBox as any) = new Function('a', 'return [a' + format.join(', a') + '];');
     }
 };
 

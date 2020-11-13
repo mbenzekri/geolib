@@ -1,7 +1,11 @@
 "use strict";
+/* eslint-disable no-extra-boolean-cast */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 Object.defineProperty(exports, "__esModule", { value: true });
+exports._ = void 0;
 // mots de liaisons à supprimer (article, conjonctions, ...)
-var SUPPR = [
+const SUPPR = [
     'A',
     'AU',
     'AUX',
@@ -26,9 +30,9 @@ var SUPPR = [
     'UN',
     'UNE'
 ];
-var SUPPRRE = new RegExp('\\b(' + SUPPR.join('|') + ')\\b', 'gi');
+const SUPPRRE = new RegExp('\\b(' + SUPPR.join('|') + ')\\b', 'gi');
 // abbréviations de types de voies pour simplicfication
-var ABBREV = {};
+const ABBREV = {};
 ABBREV['ABBAYE'] = 'ABE';
 ABBREV['AGGLOMERATION'] = 'AGL';
 ABBREV['AIRE'] = 'AIRE';
@@ -303,9 +307,9 @@ ABBREV['ZONE D AMENAGEMENT CONCERTE'] = 'ZAC';
 ABBREV['ZONE D AMENAGEMENT DIFFERE'] = 'ZAD';
 ABBREV['ZONE INDUS'] = 'ZI';
 ABBREV['ZONE INDUSTRIELLE'] = 'ZI';
-var ABBREVRE = new RegExp('^ *(' + Object.keys(ABBREV).join('|') + ')\\b', 'gi');
+const ABBREVRE = new RegExp('^ *(' + Object.keys(ABBREV).join('|') + ')\\b', 'gi');
 // liste de caractere diacritique pour remplacement
-var defaultDiacriticsRemovalMap = [
+const defaultDiacriticsRemovalMap = [
     // tslint:disable-next-line:max-line-length
     { base: 'A', letters: '\u0041\u24B6\uFF21\u00C0\u00C1\u00C2\u1EA6\u1EA4\u1EAA\u1EA8\u00C3\u0100\u0102\u1EB0\u1EAE\u1EB4\u1EB2\u0226\u01E0\u00C4\u01DE\u1EA2\u00C5\u01FA\u01CD\u0200\u0202\u1EA0\u1EAC\u1EB6\u1E00\u0104\u023A\u2C6F' },
     { base: 'AA', letters: '\uA732' },
@@ -402,18 +406,18 @@ var defaultDiacriticsRemovalMap = [
     { base: 'y', letters: '\u0079\u24E8\uFF59\u1EF3\u00FD\u0177\u1EF9\u0233\u1E8F\u00FF\u1EF7\u1E99\u1EF5\u01B4\u024F\u1EFF' },
     { base: 'z', letters: '\u007A\u24E9\uFF5A\u017A\u1E91\u017C\u017E\u1E93\u1E95\u01B6\u0225\u0240\u2C6C\uA763' }
 ];
-var DIACRITICS = defaultDiacriticsRemovalMap.reduce(function (prev, cur) {
-    for (var i = 0; i < cur.letters.length; i++) {
+const DIACRITICS = defaultDiacriticsRemovalMap.reduce(function (prev, cur) {
+    for (let i = 0; i < cur.letters.length; i++) {
         prev[cur.letters.charAt(i)] = cur.base;
     }
     return prev;
 }, {});
-var DIACRITICSRE = new RegExp('([' + Object.keys(DIACRITICS).join('') + '])', 'g');
+const DIACRITICSRE = new RegExp('([' + Object.keys(DIACRITICS).join('') + '])', 'g');
 // liste de caractere alphanumerique
-var ALPHANUM = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ';
-var ALPHANUMRE = new RegExp('[^' + ALPHANUM + ']+', 'g');
-var POW_2_30 = Math.pow(2, 30);
-var CLEANFCT = [
+const ALPHANUM = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ';
+const ALPHANUMRE = new RegExp('[^' + ALPHANUM + ']+', 'g');
+const POW_2_30 = Math.pow(2, 30);
+const CLEANFCT = [
     { name: 'Trans Majuscule    ', op: function (value) { return !value ? value : value.toUpperCase(); } },
     // tslint:disable-next-line:max-line-length
     { name: 'Suppr diacritiques ', op: function (value) { return !value ? value : value.replace(DIACRITICSRE, function (m, p) { return DIACRITICS[p]; }, 'i'); } },
@@ -424,7 +428,7 @@ var CLEANFCT = [
     { name: 'Abbrev type voie   ', op: function (value) { return !value ? value : value.replace(ABBREVRE, function (m, p) { return ABBREV[p]; }, 'gi'); } },
     { name: 'Suppr no alphanum  ', op: function (value) { return !value ? value : value.replace(ALPHANUMRE, ' '); } }
 ];
-var CLEANWD = [
+const CLEANWD = [
     { name: 'Trans Majuscule    ', op: function (value) { return !value ? value : value.toUpperCase(); } },
     // tslint:disable-next-line:max-line-length
     { name: 'Suppr diacritiques ', op: function (value) { return !value ? value : value.replace(DIACRITICSRE, function (m, p) { return DIACRITICS[p]; }, 'i'); } },
@@ -435,7 +439,7 @@ var CLEANWD = [
     // tslint:disable-next-line:max-line-length
     { name: 'Suppr exces blancs ', op: function (value) { return !value ? value : value.replace(/^ */, '').replace(/ *$/g, '').split(/ +/); } }
 ];
-var CLEANPREFIX = [
+const CLEANPREFIX = [
     { name: 'Trans Majuscule    ', op: function (value) { return !value ? value : value.toUpperCase(); } },
     // tslint:disable-next-line:max-line-length
     { name: 'Suppr diacritiques ', op: function (value) { return !value ? value : value.replace(DIACRITICSRE, function (m, p) { return DIACRITICS[p]; }, 'i'); } },
@@ -449,26 +453,26 @@ String.prototype.trimzero = function () {
 };
 String.prototype.titlecase = function () {
     return (' ' + this.toLowerCase() + ' ')
-        .replace(/[-\s][a-z][^-\s]*/ig, function (txt) { return txt.charAt(0) + txt.charAt(1).toUpperCase() + txt.substr(2); }).trim();
+        .replace(/[-\s][a-z][^-\s]*/ig, txt => txt.charAt(0) + txt.charAt(1).toUpperCase() + txt.substr(2)).trim();
 };
 String.prototype.levenshtein = function levenshtein(str2) {
-    var m = this.length;
-    var n = str2.length;
-    var d = [];
+    const m = this.length;
+    const n = str2.length;
+    const d = [];
     if (!m) {
         return n;
     }
     if (!n) {
         return m;
     }
-    for (var i = 0; i <= m; i++) {
+    for (let i = 0; i <= m; i++) {
         d[i] = [i];
     }
-    for (var j = 0; j <= n; j++) {
+    for (let j = 0; j <= n; j++) {
         d[0][j] = j;
     }
-    for (var j = 1; j <= n; j++) {
-        for (var i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+        for (let i = 1; i <= m; i++) {
             if (this[i - 1] === str2[j - 1]) {
                 d[i][j] = d[i - 1][j - 1];
             }
@@ -480,8 +484,8 @@ String.prototype.levenshtein = function levenshtein(str2) {
     return d[m][n];
 };
 String.prototype.clean = function () {
-    var cleaned = CLEANFCT.reduce(function (v, fct) {
-        var next = fct.op(v);
+    const cleaned = CLEANFCT.reduce(function (v, fct) {
+        const next = fct.op(v);
         // console.log(fct.name +" "+next);
         return next;
     }, this);
@@ -491,8 +495,8 @@ String.prototype.wordlist = function () {
     if (!this) {
         return [];
     }
-    var cleaned = CLEANWD.reduce(function (v, fct) {
-        var next = fct.op(v);
+    const cleaned = CLEANWD.reduce(function (v, fct) {
+        const next = fct.op(v);
         // console.log(fct.name +" "+next);
         return next;
     }, this);
@@ -502,46 +506,46 @@ String.prototype.prefix = function () {
     if (!this) {
         return [];
     }
-    var cleaned = CLEANPREFIX.reduce(function (v, fct) {
-        var next = fct.op(v);
+    const cleaned = CLEANPREFIX.reduce(function (v, fct) {
+        const next = fct.op(v);
         // console.log(fct.name +" "+next);
         return next;
     }, this);
-    return cleaned.split(/ +/).map(function (s) { return s.substring(0, 4); });
+    return cleaned.split(/ +/).map(s => s.substring(0, 4));
 };
 String.prototype.fuzzyhash = function () {
     if (!this) {
         return 0;
     }
-    var cleaned = this.clean();
+    const cleaned = this.clean();
     if (!cleaned) {
         return 0;
     }
     // calculer le code
-    var bits = [];
-    var c, i;
+    const bits = [];
+    let c, i;
     for (i = 0; i < ALPHANUM.length; i++) {
         bits[i] = '0';
     }
-    for (i = 0; c = cleaned.charAt(i); i++) {
+    for (i = 0; !!(c = cleaned.charAt(i)); i++) {
         bits[ALPHANUM.length - 1 - ALPHANUM.indexOf(c)] = '1';
     }
-    var str = bits.join('');
-    var code = parseInt(str, 2);
+    const str = bits.join('');
+    const code = parseInt(str, 2);
     // console.log ("["+value+"]/["+cleaned+"]/["+str+"] => "+code);
     return code;
 };
 String.fuzzyExtend = function (fuzzyh) {
     // calculer les dérivé �  un caractere pres du code fuzzyh
-    var values = [];
-    var hibits = Math.floor(fuzzyh / POW_2_30);
-    var lobits = fuzzyh % POW_2_30;
-    for (var i = 0; i < ALPHANUM.length; i++) {
-        var pow_2_i = Math.pow(2, i);
-        var ihibits = Math.floor(pow_2_i / POW_2_30);
-        var ilobits = pow_2_i % POW_2_30;
+    const values = [];
+    const hibits = Math.floor(fuzzyh / POW_2_30);
+    const lobits = fuzzyh % POW_2_30;
+    for (let i = 0; i < ALPHANUM.length; i++) {
+        const pow_2_i = Math.pow(2, i);
+        const ihibits = Math.floor(pow_2_i / POW_2_30);
+        const ilobits = pow_2_i % POW_2_30;
         // tslint:disable-next-line:no-bitwise
-        var next = (hibits ^ ihibits) * POW_2_30 + (lobits ^ ilobits);
+        const next = (hibits ^ ihibits) * POW_2_30 + (lobits ^ ilobits);
         values.push(next);
     }
     return values;
@@ -550,9 +554,8 @@ String.fuzzyExtend = function (fuzzyh) {
  * method to flatten recursively an array of array and removes null and undefined values
  * @returns flattened array
  */
-Array.prototype.flatten = function (flat) {
-    if (flat === void 0) { flat = new Array(); }
-    this.forEach(function (v) { return Array.isArray(v) ? v.flatten(flat) : (v !== null && v !== undefined) ? flat.push(v) : null; });
+Array.prototype.flatten = function (flat = new Array()) {
+    this.forEach((v) => Array.isArray(v) ? v.flatten(flat) : (v !== null && v !== undefined) ? flat.push(v) : null);
     return flat;
 };
 /**
@@ -560,11 +563,11 @@ Array.prototype.flatten = function (flat) {
  * @param promises - array to promise
  * @returns promise which resolve result will be flattened
  */
-Promise.cleanPromiseAll = function (promises) {
+Promise.clean = function (promises) {
     return Promise.all(promises)
-        .then(function (array) {
+        .then((array) => {
         return array.flatten();
-    }, function (e) {
+    }, () => {
         return Promise.resolve([]);
     });
 };
@@ -584,12 +587,11 @@ Promise.cleanPromiseAll = function (promises) {
 // TypeError: instance[output.propName].subscribe is not a function
 // alors utilisez la syntaxe suivante
 Object.defineProperty(Object.prototype, 'applyTo', {
-    value: function (to) {
-        var _this = this;
-        if (to === void 0) { to = {}; }
-        Object.keys(this).forEach(function (key) {
+    // eslint-disable-next-line @typescript-eslint/ban-types
+    value: function (to = {}) {
+        Object.keys(this).forEach((key) => {
             if (!(key in to)) {
-                to[key] = _this[key];
+                to[key] = this[key];
             }
         });
         return to;
@@ -597,6 +599,6 @@ Object.defineProperty(Object.prototype, 'applyTo', {
     writable: false,
     enumerable: false
 });
-function _() { }
+function _() { return; }
 exports._ = _;
 //# sourceMappingURL=polyfill.js.map
