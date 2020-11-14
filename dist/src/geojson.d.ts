@@ -4,7 +4,7 @@ import { Geofile, GeofileHandle, GeofileFeature, GeofileParser } from './geofile
  */
 export declare class Geojson extends Geofile {
     private file;
-    constructor(name: string, datafile: File | Blob, indexfile?: File | Blob);
+    constructor(name: string, datafile: Blob, indexfile?: Blob);
     get parser(): GeofileParser;
     load(): Promise<any>;
     release(): Promise<any>;

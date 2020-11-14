@@ -36,7 +36,7 @@ export class GeofileFeature {
 }
 
 export abstract class GeofileParser {
-    abstract init(onhandle: (handle: GeofileHandle) => Promise<void>): File | Blob
+    abstract init(onhandle: (handle: GeofileHandle,line:number,col:number) => Promise<void>): Blob
     abstract process(byte: number)
     abstract async ended()
 }
@@ -49,7 +49,7 @@ const UINT32_LEN = 4
 const HEADER_RSIZE = 16
 const HEADER_TAG = 'GEOFILEX';
 const TAG_LEN = HEADER_TAG.length
-const HEADER_OFFSETS: {[key:string]: number} = { tag: 0, count: TAG_LEN, idxcount: TAG_LEN + UINT32_LEN }
+const HEADER_OFFSETS: { [key: string]: number } = { tag: 0, count: TAG_LEN, idxcount: TAG_LEN + UINT32_LEN }
 
 // -- index metadata record is { attribute:char[ATTRIBUTE_LEN], type:char[INDEXTYPE_LEN], offset:uint32, length:uint32 }
 // attribute: attribute name (blank right padded)
@@ -59,10 +59,10 @@ const HEADER_OFFSETS: {[key:string]: number} = { tag: 0, count: TAG_LEN, idxcoun
 const METADAS_RSIZE = 68;
 const ATTRIBUTE_LEN = 50
 const INDEXTYPE_LEN = 10
-const METADATAS_OFFSETS: {[key:string]: number} = { attribute: 0, type: ATTRIBUTE_LEN, offset: ATTRIBUTE_LEN + INDEXTYPE_LEN, length: ATTRIBUTE_LEN + INDEXTYPE_LEN + UINT32_LEN }
+const METADATAS_OFFSETS: { [key: string]: number } = { attribute: 0, type: ATTRIBUTE_LEN, offset: ATTRIBUTE_LEN + INDEXTYPE_LEN, length: ATTRIBUTE_LEN + INDEXTYPE_LEN + UINT32_LEN }
 
-const getoffsets =  (offset:number,offsets: {[key:string]: number}) : {[key:string]: number} => {
-    return Object.keys(offsets).reduce( (res,key) => { res[key] = offset + offsets[key]; return res }, {})
+const getoffsets = (offset: number, offsets: { [key: string]: number }): { [key: string]: number } => {
+    return Object.keys(offsets).reduce((res, key) => { res[key] = offset + offsets[key]; return res }, {})
 }
 
 
@@ -80,7 +80,7 @@ export interface GeofileFilter {
 }
 export const setFilter = (gf: GeofileFilter, filter: (feature: GeofileFeature) => boolean): GeofileFilter => {
     const options: GeofileFilter = gf.applyTo({}) as any;
-    options._internalFilter = options._internalFilter ||  [] 
+    options._internalFilter = options._internalFilter || []
     options._internalFilter.push(filter);
     return options;
 }
@@ -99,7 +99,7 @@ export abstract class Geofile {
     readonly name: string
     readonly proj: string = 'EPSG:4326'
     private _loaded: boolean
-    private indexFile: File | Blob
+    private indexFile: Blob
     private handles: GeofileIndexHandle
     private geoidx: GeofileIndexRtree
     private indexes: Map<string, GeofileIndex>
@@ -120,7 +120,7 @@ export abstract class Geofile {
         throw Error(`geofile [${this.name}] :${msg}`)
     }
 
-    constructor(name: string, indexFile?: File | Blob) {
+    constructor(name: string, indexFile?: Blob) {
         this.indexFile = indexFile
         this.name = name;
         this.proj = 'EPSG:4326'
@@ -169,7 +169,7 @@ export abstract class Geofile {
         limit = (limit <= 0) ? 1 : Math.min(limit, this.count - rank);
         const features = await this.readFeatures(rank, limit);
         return features
-            .map((feature,i) => this.apply(this.initFeature(feature, rank+i), options))
+            .map((feature, i) => this.apply(this.initFeature(feature, rank + i), options))
             .filter(f => f);
     }
 
@@ -188,23 +188,23 @@ export abstract class Geofile {
         const indexes: GeofileIndex[] = []
 
         // read feature count and index count (length = HEADER_TSIZE)
-        let dv = new DataView(buffer,0, HEADER_RSIZE)
-        const offsets = getoffsets(0,HEADER_OFFSETS)
+        let dv = new DataView(buffer, 0, HEADER_RSIZE)
+        const offsets = getoffsets(0, HEADER_OFFSETS)
         this.assertIndexTag(buffer.slice(offsets.tag, TAG_LEN))
-        const count = dv.getUint32(offsets.count,true);
-        const idxcount = dv.getUint32(offsets.idxcount,true);
+        const count = dv.getUint32(offsets.count, true);
+        const idxcount = dv.getUint32(offsets.idxcount, true);
 
         dv = new DataView(buffer, HEADER_RSIZE, idxcount * METADAS_RSIZE);
         for (let i = 0, pos = 0; i < idxcount; i++) {
-            const offsets = getoffsets(pos,METADATAS_OFFSETS)
-            const attribute = dv.getUtf8(offsets.attribute,ATTRIBUTE_LEN)
-            const type = GeofileIndexType[dv.getUtf8(offsets.type,INDEXTYPE_LEN)]
-            const offset = dv.getUint32(offsets.offset,true);
-            const length = dv.getUint32(offsets.length,true);
+            const offsets = getoffsets(pos, METADATAS_OFFSETS)
+            const attribute = dv.getUtf8(offsets.attribute, ATTRIBUTE_LEN)
+            const type = GeofileIndexType[dv.getUtf8(offsets.type, INDEXTYPE_LEN)]
+            const offset = dv.getUint32(offsets.offset, true);
+            const length = dv.getUint32(offsets.length, true);
             const indexdv = new DataView(buffer, offset, length);
             const index = GeofileIndex.create(type, this, indexdv, attribute)
             indexes.push(index)
-            pos+=METADAS_RSIZE
+            pos += METADAS_RSIZE
         }
         this.indexes = new Map()
         for (const index of indexes) {
@@ -231,11 +231,11 @@ export abstract class Geofile {
         const count = idxbufs[0].byteLength / GeofileIndexHandle.RECSIZE
         const hdbuf = new ArrayBuffer(HEADER_RSIZE);
         const hddv = new DataView(hdbuf);
-        const offset = 0 
-        const offsets = getoffsets(offset,HEADER_OFFSETS) 
+        const offset = 0
+        const offsets = getoffsets(offset, HEADER_OFFSETS)
         hddv.setAscii(offsets.tag, HEADER_TAG)
-        hddv.setUint32(offsets.count, count,true);
-        hddv.setUint32(offsets.idxcount, idxlist.length,true);
+        hddv.setUint32(offsets.count, count, true);
+        hddv.setUint32(offsets.idxcount, idxlist.length, true);
 
         // index metadata record is {attribute:char[50], type:char[10], offset:uint32, length: uint32}
         // attribute: name of the indexed attribute ('rank' for handle and 'geometry' for geometry)
@@ -247,15 +247,15 @@ export abstract class Geofile {
         const mdbuf = new ArrayBuffer(METADAS_RSIZE * idxlist.length);
         const mddv = new DataView(mdbuf);
         let osfidxdata = hdbuf.byteLength + mdbuf.byteLength
-        idxlist.reduce((offset,index, i) => {
-            const offsets = getoffsets(offset,METADATAS_OFFSETS) 
+        idxlist.reduce((offset, index, i) => {
+            const offsets = getoffsets(offset, METADATAS_OFFSETS)
             mddv.setAscii(offsets.attribute, index.attribute)
             mddv.setAscii(offsets.type, index.type)
-            mddv.setUint32(offsets.offset, osfidxdata,true);
-            mddv.setUint32(offsets.length, idxbufs[i].byteLength,true);
+            mddv.setUint32(offsets.offset, osfidxdata, true);
+            mddv.setUint32(offsets.length, idxbufs[i].byteLength, true);
             osfidxdata += idxbufs[i].byteLength
             return offset + METADAS_RSIZE
-        },0)
+        }, 0)
 
         idxbufs = [hdbuf, mdbuf, ...idxbufs]
         const total = idxbufs.reduce((p, c) => p + c.byteLength, 0)
@@ -285,16 +285,16 @@ export abstract class Geofile {
         const collected: GeofileFeature[] = []
         const parser = this.parser
         const bunch = 1024 * 64
-        const onhandle = (handle: GeofileHandle) => {
+        const onhandle = (handle: GeofileHandle, line:number, col:number) => {
             return this.readFeature(handle)
-                .then(f =>  {
-                    f.bbox = gt.bbox_g(f.geometry) 
+                .then(f => {
+                    f.bbox = gt.bbox_g(f.geometry)
                     f.rank = handle.rank
                     f.pos = handle.pos
                     f.len = handle.len
-                    collected.push(f) 
+                    collected.push(f)
                 })
-                .catch(e => { console.log(`Error while reading feature ${e}`) })
+                .catch(e => { console.log(`Error while reading feature ${e} line:${line}/col:${col}`) })
         }
 
         const file = parser.init(onhandle)
@@ -460,7 +460,7 @@ export abstract class Geofile {
             const scale = this.getScale(resolution, proj);
             extent = (proj === this.proj) ? extent : ol.proj.transformExtent(extent, proj, this.proj);
             if ((!maxscale || scale < maxscale) && (!minscale || scale >= minscale)) {
-                this.bbox(extent, {targetProjection: proj})
+                this.bbox(extent, { targetProjection: proj })
                     .then((features) => {
                         vsource.clear();
                         vsource.addFeatures(features.map(f => format.readFeature(f)));

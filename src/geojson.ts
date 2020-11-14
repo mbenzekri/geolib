@@ -10,9 +10,9 @@ _();
  */
 export class Geojson extends Geofile {
 
-    private file : File | Blob
+    private file : Blob
 
-    constructor(name: string, datafile: File | Blob, indexfile?: File | Blob) {
+    constructor(name: string, datafile: Blob, indexfile?: Blob) {
         super(name, indexfile);
         this.assert(!!datafile,`Geojson.constructor(): data file paramemter is not provided or nullish`)
         this.file = datafile

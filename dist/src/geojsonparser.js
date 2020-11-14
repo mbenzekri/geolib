@@ -190,11 +190,11 @@ class GeojsonParser extends geofile_1.GeofileParser {
     pop() {
         const item = this.stack.pop();
         this.state = this.stack.length ? this.stack[this.stack.length - 1].state : 'any';
-        if (item.state === 'object' && this.stack.length === 2) {
+        if (item.state === 'object' && this.stack.length === 2 && this.stack[1].state === 'array') {
             item.rank = this.rank++;
             item.len = this.pos - item.pos + 1;
             this.pending++;
-            this.onhandle(item)
+            this.onhandle(item, this.line, this.col)
                 .then(() => this.pending--)
                 .catch(() => this.pending--);
         }

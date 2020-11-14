@@ -249,7 +249,7 @@ class Geofile {
         const collected = [];
         const parser = this.parser;
         const bunch = 1024 * 64;
-        const onhandle = (handle) => {
+        const onhandle = (handle, line, col) => {
             return this.readFeature(handle)
                 .then(f => {
                 f.bbox = gt.bbox_g(f.geometry);
@@ -258,7 +258,7 @@ class Geofile {
                 f.len = handle.len;
                 collected.push(f);
             })
-                .catch(e => { console.log(`Error while reading feature ${e}`); });
+                .catch(e => { console.log(`Error while reading feature ${e} line:${line}/col:${col}`); });
         };
         const file = parser.init(onhandle);
         const iter = async function* () {

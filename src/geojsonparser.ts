@@ -19,7 +19,7 @@ interface ParserItem extends GeofileHandle {
 }
 
 export class GeojsonParser extends GeofileParser{
-    private file : File | Blob
+    private file : Blob
     private rank: number
     private state: string
     private stack: ParserItem[]
@@ -27,16 +27,15 @@ export class GeojsonParser extends GeofileParser{
     private charcode: number
     private line: number
     private col: number
-    private ignore: boolean
     private pending = 0
-    private onhandle: (handle: GeofileHandle) => Promise<void>
+    private onhandle: (handle: GeofileHandle,line: number, col:number) => Promise<void>
 
-    constructor(file: File | Blob) {
+    constructor(file: Blob) {
         super()
         this.file = file
     }
 
-    init(onhandle: (handle: GeofileHandle) => Promise<void>): File|Blob {
+    init(onhandle: (handle: GeofileHandle,line: number, col:number) => Promise<void>): File|Blob {
         this.rank = 0
         this.state = 'any'
         this.stack = []
@@ -162,11 +161,11 @@ export class GeojsonParser extends GeofileParser{
         const item = this.stack.pop();
         this.state = this.stack.length ? this.stack[this.stack.length - 1].state : 'any';
 
-        if (item.state === 'object' && this.stack.length === 2) {
+        if (item.state === 'object' && this.stack.length === 2 && this.stack[1].state === 'array') {
             item.rank = this.rank++
             item.len = this.pos - item.pos + 1
             this.pending++
-            this.onhandle(item)
+            this.onhandle(item,this.line,this.col)
                 .then( () => this.pending--)
                 .catch(() => this.pending--)
         }

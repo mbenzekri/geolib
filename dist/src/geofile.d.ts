@@ -29,7 +29,7 @@ export declare class GeofileFeature {
     distance?: number;
 }
 export declare abstract class GeofileParser {
-    abstract init(onhandle: (handle: GeofileHandle) => Promise<void>): File | Blob;
+    abstract init(onhandle: (handle: GeofileHandle, line: number, col: number) => Promise<void>): Blob;
     abstract process(byte: number): any;
     abstract ended(): any;
 }
@@ -71,7 +71,7 @@ export declare abstract class Geofile {
     abstract readFeature(rank: number | GeofileHandle): Promise<GeofileFeature>;
     abstract readFeatures(rank: number, limit: number): Promise<GeofileFeature[]>;
     assert(value: boolean, msg: string): asserts value is true;
-    constructor(name: string, indexFile?: File | Blob);
+    constructor(name: string, indexFile?: Blob);
     open(): Promise<void>;
     close(): Promise<void>;
     getHandle(rank: number): GeofileHandle;
