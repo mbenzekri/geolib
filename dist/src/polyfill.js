@@ -449,6 +449,39 @@ const CLEANPREFIX = [
     // tslint:disable-next-line:max-line-length
     { name: 'Suppr exces blancs ', op: function (value) { return !value ? value : value.replace(/^ */, '').replace(/ *$/g, '').replace(/ +/g, ' '); } }
 ];
+Blob.prototype.read = function (offset = 0, length = this.size) {
+    if (!this)
+        return Promise.reject("null blob provided to read");
+    const blob = this.slice(offset, offset + length);
+    return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onerror = () => reject(r.error);
+        r.onload = () => resolve(r.result);
+        r.readAsArrayBuffer(blob);
+    });
+};
+Blob.prototype.readDv = function (offset = 0, length = this.size) {
+    if (!this)
+        return Promise.reject("null blob provided to read");
+    const blob = this.slice(offset, offset + length);
+    return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onerror = () => reject(r.error);
+        r.onload = () => resolve(new DataView(r.result));
+        r.readAsArrayBuffer(blob);
+    });
+};
+Blob.prototype.readText = function (offset = 0, length = this.size) {
+    if (!this)
+        return Promise.reject("null blob provided to read");
+    const blob = this.slice(offset, offset + length);
+    return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onerror = () => reject(r.error);
+        r.onload = () => resolve(r.result);
+        r.readAsText(blob);
+    });
+};
 DataView.prototype.setAscii = function (offset, str, length = str.length) {
     length = Math.min(str.length, length);
     for (let i = 0; i < length; i++)
@@ -460,6 +493,20 @@ DataView.prototype.getAscii = function (offset, length) {
         array.push(String.fromCharCode(this.getUint8(offset + i)));
     return array.join('');
 };
+Uint8Array.prototype.getUtf8 =
+    ArrayBuffer.prototype.getUtf8 =
+        SharedArrayBuffer.prototype.getUtf8 =
+            function (offset, length) {
+                const buffer = this.slice(offset, offset + length);
+                if (window.TextDecoder) {
+                    const td = new TextDecoder();
+                    return td.decode(buffer).trimzero();
+                }
+                else {
+                    const sd = new string_decoder_1.StringDecoder();
+                    return sd.end(Buffer.from(buffer)).trimzero();
+                }
+            };
 DataView.prototype.getUtf8 = function (offset, length) {
     if (window.TextDecoder) {
         const td = new TextDecoder();

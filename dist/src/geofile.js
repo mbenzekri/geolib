@@ -20,11 +20,13 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Geofile = exports.setFilter = exports.GeofileParser = exports.GeofileFeature = exports.GeofileFiletype = void 0;
+exports.Geofile = exports.setFilter = exports.GeofileFeature = exports.GeofileFiletype = void 0;
 const gt = __importStar(require("./geotools"));
 const geoindex_1 = require("./geoindex");
-const geoindex_2 = require("./geoindex");
 var GeofileFiletype;
 (function (GeofileFiletype) {
     GeofileFiletype[GeofileFiletype["CSV"] = 0] = "CSV";
@@ -42,9 +44,6 @@ class GeofileFeature {
     }
 }
 exports.GeofileFeature = GeofileFeature;
-class GeofileParser {
-}
-exports.GeofileParser = GeofileParser;
 // -- header  is {tag:char[8], count:uint32, index:uint32}
 // tag: is file signature must be equal HEADER_TAG,
 // count: is feature count,
@@ -90,6 +89,7 @@ class Geofile {
     static delete(name) { Geofile.GEOFILE_MAP.delete(name); }
     get count() { return this.handles ? this.handles.count : 0; }
     get loaded() { return this._loaded; }
+    get extent() { return this.geoidx ? this.geoidx.extent : null; }
     getIndex(attribute, type) {
         return this.indexes.get(`${attribute}/${type}`);
     }
@@ -98,13 +98,13 @@ class Geofile {
             return;
         throw Error(`geofile [${this.name}] :${msg}`);
     }
-    open() {
-        return this.loadIndexes()
-            .then(() => this.load())
-            .then(() => this.assertTerminated());
+    async load() {
+        await this.open();
+        await this.loadIndexes();
+        this.assertTerminated();
     }
-    close() {
-        return this.release().then(() => {
+    unload() {
+        return this.close().then(() => {
             this._loaded = false;
             this.indexFile = null;
             this.handles = null;
@@ -120,7 +120,7 @@ class Geofile {
         feature.rank = rank;
         feature.geofile = this;
         feature.proj = this.proj;
-        feature.bbox = gt.bbox_g(feature.geometry);
+        feature.bbox = (feature.geometry) ? gt.bbox_g(feature.geometry) : null;
         return feature;
     }
     async getFeature(rank, options = {}) {
@@ -137,19 +137,8 @@ class Geofile {
             .map((feature, i) => this.apply(this.initFeature(feature, rank + i), options))
             .filter(f => f);
     }
-    /** internal method to load all data indexes */
-    loadIndexes() {
-        if (!this.indexFile)
-            return Promise.resolve();
-        return new Promise((resolve, reject) => {
-            const f = this.indexFile;
-            const r = new FileReader();
-            r.onerror = () => reject(`unable to load indexes due to ${r.error.message}`);
-            r.onload = () => resolve(this.parseIndexes(r.result));
-            r.readAsArrayBuffer(f);
-        });
-    }
-    parseIndexes(buffer) {
+    async loadIndexes() {
+        const buffer = await this.indexFile.read();
         const indexes = [];
         // read feature count and index count (length = HEADER_TSIZE)
         let dv = new DataView(buffer, 0, HEADER_RSIZE);
@@ -165,7 +154,7 @@ class Geofile {
             const offset = dv.getUint32(offsets.offset, true);
             const length = dv.getUint32(offsets.length, true);
             const indexdv = new DataView(buffer, offset, length);
-            const index = geoindex_1.GeofileIndex.create(type, this, indexdv, attribute);
+            const index = geoindex_1.GeofileIndex.create(type, attribute, this, indexdv);
             indexes.push(index);
             pos += METADAS_RSIZE;
         }
@@ -184,48 +173,57 @@ class Geofile {
     async buildIndexes(idxlist) {
         // build all mandatory indexes and defined indexes
         idxlist = [{ attribute: 'rank', type: geoindex_1.GeofileIndexType.handle }, { attribute: 'geometry', type: geoindex_1.GeofileIndexType.rtree }, ...idxlist];
-        let idxbufs = [];
-        for (const def of idxlist) {
-            const index = await geoindex_1.GeofileIndex.build(def.type, this, def.attribute);
-            idxbufs.push(index);
+        this.indexes = new Map();
+        idxlist.forEach(def => {
+            const index = geoindex_1.GeofileIndex.create(def.type, def.attribute, this);
+            if (index.type === geoindex_1.GeofileIndexType.handle)
+                this.handles = index;
+            if (index.type === geoindex_1.GeofileIndexType.rtree)
+                this.geoidx = index;
+            this.indexes.set(index.name, index);
+        });
+        // parse all the features
+        for (const index of this.indexes.values())
+            index.begin();
+        for await (const feature of this.parse()) {
+            this.indexes.forEach(index => index.index(feature));
         }
+        for (const index of this.indexes.values())
+            index.end();
+        this._loaded = true;
+        this.assertTerminated();
+        return;
+    }
+    getIndexBuffer() {
         // build index header
-        const count = idxbufs[0].byteLength / geoindex_2.GeofileIndexHandle.RECSIZE;
         const hdbuf = new ArrayBuffer(HEADER_RSIZE);
         const hddv = new DataView(hdbuf);
-        const offset = 0;
-        const offsets = getoffsets(offset, HEADER_OFFSETS);
+        const offsets = getoffsets(0, HEADER_OFFSETS);
         hddv.setAscii(offsets.tag, HEADER_TAG);
-        hddv.setUint32(offsets.count, count, true);
-        hddv.setUint32(offsets.idxcount, idxlist.length, true);
+        hddv.setUint32(offsets.count, this.count, true);
+        hddv.setUint32(offsets.idxcount, this.indexes.size, true);
         // index metadata record is {attribute:char[50], type:char[10], offset:uint32, length: uint32}
         // attribute: name of the indexed attribute ('rank' for handle and 'geometry' for geometry)
         // type: index type (handle,rtree,ordered,fuzzy,prefix)
         // buffer: offset of the index data in index file
         // length: length of the index data in the index file
         // build index metdatas
-        const mdbuf = new ArrayBuffer(METADAS_RSIZE * idxlist.length);
+        const mdbuf = new ArrayBuffer(METADAS_RSIZE * this.indexes.size);
         const mddv = new DataView(mdbuf);
         let osfidxdata = hdbuf.byteLength + mdbuf.byteLength;
-        idxlist.reduce((offset, index, i) => {
+        let offset = 0;
+        this.indexes.forEach((index) => {
             const offsets = getoffsets(offset, METADATAS_OFFSETS);
             mddv.setAscii(offsets.attribute, index.attribute);
             mddv.setAscii(offsets.type, index.type);
             mddv.setUint32(offsets.offset, osfidxdata, true);
-            mddv.setUint32(offsets.length, idxbufs[i].byteLength, true);
-            osfidxdata += idxbufs[i].byteLength;
-            return offset + METADAS_RSIZE;
+            mddv.setUint32(offsets.length, index.array.byteLength, true);
+            osfidxdata += index.array.byteLength;
+            offset += METADAS_RSIZE;
         }, 0);
-        idxbufs = [hdbuf, mdbuf, ...idxbufs];
-        const total = idxbufs.reduce((p, c) => p + c.byteLength, 0);
-        const array = new Uint8Array(total);
-        idxbufs.reduce((offset, buffer) => {
-            array.set(new Uint8Array(buffer), offset);
-            return offset + buffer.byteLength;
-        }, 0);
-        this.parseIndexes(array.buffer);
-        this.assertTerminated();
-        return;
+        const idxbufs = [...this.indexes.values()].map(idx => idx.array);
+        const blob = new Blob([hdbuf, mdbuf, ...idxbufs]);
+        return blob;
     }
     apply(feature, options) {
         if (!feature)
@@ -246,49 +244,31 @@ class Geofile {
         return feature;
     }
     parse() {
-        const collected = [];
-        const parser = this.parser;
         const bunch = 1024 * 64;
-        const onhandle = (handle, line, col) => {
-            return this.readFeature(handle)
-                .then(f => {
-                f.bbox = gt.bbox_g(f.geometry);
-                f.rank = handle.rank;
-                f.pos = handle.pos;
-                f.len = handle.len;
-                collected.push(f);
-            })
-                .catch(e => { console.log(`Error while reading feature ${e} line:${line}/col:${col}`); });
-        };
-        const file = parser.init(onhandle);
+        // eslint-disable-next-line @typescript-eslint/no-this-alias
+        const geofile = this;
         const iter = async function* () {
             let offset = 0;
-            while (offset < file.size) {
-                while (collected.length > 0)
-                    yield collected.shift();
-                await new Promise((resolve, reject) => {
-                    const slice = file.slice(offset, offset + bunch);
-                    const r = new FileReader();
-                    r.onerror = () => reject(`Geojson.readFeature(): unable to read feature due to ${r.error.message}`);
-                    r.onload = () => {
-                        const array = new Uint8Array(r.result);
-                        let err = null;
-                        for (let i = 0; i < array.byteLength && !err; i++) {
-                            const byte = array[i];
-                            // console.log(`parsing char[${i}] => "${String.fromCharCode(byte)}"/${byte} `)
-                            err = parser.process(byte);
-                            if (err)
-                                break;
-                        }
-                        return err ? reject(`Geofile.parse(): ${err.msg} at ${err.line}:${err.col}`) : resolve();
-                    };
-                    r.readAsArrayBuffer(slice);
-                });
+            let err = null;
+            await geofile.open();
+            const parser = geofile.parser;
+            const file = await parser.begin();
+            while (offset < file.size && !err) {
+                while (parser.collected.length > 0)
+                    yield parser.collected.shift();
+                const buffer = await file.read(offset, bunch);
+                const array = new Uint8Array(buffer);
+                for (let i = 0; i < array.byteLength && !err; i++) {
+                    const byte = array[i];
+                    err = parser.consume(byte);
+                    if (err)
+                        throw Error(`Geofile.parse(): ${err.msg} at ${err.line}:${err.col} offset=${parser.pos}`);
+                }
                 offset += bunch;
             }
-            await parser.ended();
-            while (collected.length > 0)
-                yield collected.shift();
+            await parser.end();
+            while (parser.collected.length > 0)
+                yield parser.collected.shift();
             return;
         };
         return iter();
@@ -467,4 +447,6 @@ class Geofile {
 }
 exports.Geofile = Geofile;
 Geofile.GEOFILE_MAP = new Map();
+__exportStar(require("./geofileparser"), exports);
+__exportStar(require("./geoindex"), exports);
 //# sourceMappingURL=geofile.js.map

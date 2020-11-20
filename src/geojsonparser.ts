@@ -1,151 +1,120 @@
-import { GeofileHandle, GeofileParser } from "./geofile"
+import { GeofileHandle, GeofileParser, GeofileFeature } from "./geofile"
 
 const ocurly = '{'.charCodeAt(0)
 const ccurly = '}'.charCodeAt(0)
 const obracket = '['.charCodeAt(0)
 const cbracket = ']'.charCodeAt(0)
 const colon = ':'.charCodeAt(0)
-const coma = ','.charCodeAt(0)
+const comma = ','.charCodeAt(0)
 const quote = '"'.charCodeAt(0)
 const space = ' '.charCodeAt(0)
 const backslash = '\\'.charCodeAt(0)
-const escapedchars=['b','f','n','r','t','"','\\'].map( c => c.charCodeAt(0))
 
 const multi = 128
 
 interface ParserItem extends GeofileHandle {
-    state?: string, 
+    state?: string,
     value?: number[]
 }
 
-export class GeojsonParser extends GeofileParser{
-    private file : Blob
-    private rank: number
+export class GeojsonParser extends GeofileParser {
+    private file: Blob
     private state: string
     private stack: ParserItem[]
-    private pos: number
-    private charcode: number
-    private line: number
-    private col: number
-    private pending = 0
-    private onhandle: (handle: GeofileHandle,line: number, col:number) => Promise<void>
+    private curfeat: ParserItem
 
     constructor(file: Blob) {
         super()
         this.file = file
     }
 
-    init(onhandle: (handle: GeofileHandle,line: number, col:number) => Promise<void>): File|Blob {
-        this.rank = 0
+    private isfeature() { 
+        return this.stack.length === 3 && this.stack[2].state === 'object'&& this.stack[1].state === 'array' 
+    }
+    begin(): Promise<Blob> {
         this.state = 'any'
         this.stack = []
-        this.pos = 0
-        this.charcode = 0
-        this.line = 1
-        this.col = 0
-        this.onhandle = onhandle
-        return this.file
+        this.curfeat = null
+        return Promise.resolve(this.file)
     }
 
-    process(byte: number):{msg: string,line: number, col:number} {
+    process(byte: number): void {
 
-        this.charcode = byte
-        if (this.charcode === 0x0A) { this.line++; this.col = 0 }
-        this.col++
-        this.charcode = Math.min(multi, Math.max(space, this.charcode))
-        try {
-            this.automata[this.state]()
-        } catch(err) {
-            return { msg: err.toString(), line: this.line, col: this.col}
-        }
-        this.pos++
-        return null
+        byte = Math.min(multi, Math.max(space, byte))
+        if (this.curfeat) {this.curfeat.value.push(byte)}
+        this.automata[this.state](byte)
     }
 
-    ended(): Promise<void> {
-        const loop = (resolve) => (this.pending > 0)   ? setTimeout(() => loop(resolve), 100) : resolve()
-        return new Promise(loop)
-    }
+    end(): Promise<void> { return super.waitend() }
 
     // state automata 
     private automata = {
-        any: () => {
-            switch (this.charcode) {
+        any: (charcode: number) => {
+            switch (charcode) {
                 case space: break;
-                case ocurly: this.state = 'object'; this.push(); break;
+                case ocurly: this.state = 'object'; this.push(charcode); break;
                 case obracket: this.state = 'array'; this.push(); break;
                 case quote: this.state = 'string'; this.push(); break;
                 case ccurly:
                 case cbracket:
                 case colon:
-                case coma:
-                case multi: this.unexpected(); break;
-                default: this.state = 'value'; this.push(this.charcode); break;
+                case comma:
+                case multi: this.unexpected(charcode); break;
+                default: this.state = 'value'; this.push(); break;
             }
         },
-        object: () => {
-            switch (this.charcode) {
+        object: (charcode: number) => {
+            switch (charcode) {
                 case space: break;
                 case ccurly: this.pop(); break;
                 case quote: this.state = 'field'; this.push(); break;
-                case coma: break;
-                default: this.unexpected(); break;
+                case comma: break;
+                default: this.unexpected(charcode); break;
             }
         },
-        field: () => {
-            switch (this.charcode) {
+        field: (charcode: number) => {
+            switch (charcode) {
                 case quote: this.pop(); this.state = 'colon'; break;
                 // all other are allowed field chars
             }
         },
-        colon: () => {
-            switch (this.charcode) {
+        colon: (charcode: number) => {
+            switch (charcode) {
                 case space: break;
                 case colon: this.state = 'any'; break;
-                default: this.unexpected()
+                default: this.unexpected(charcode)
             }
         },
-        array: () => {
-            switch (this.charcode) {
+        array: (charcode: number) => {
+            switch (charcode) {
                 case space: break;
-                case coma: break;
+                case comma: break;
                 case cbracket: this.pop(); break;
-                case ocurly: this.state = 'object'; this.push(); break;
+                case ocurly: this.state = 'object'; this.push(charcode); break;
                 case obracket: this.state = 'array'; this.push(); break;
                 case quote: this.state = 'string'; this.push(); break;
                 case ccurly:
                 case colon:
-                case multi: this.unexpected(); break;
-                default: this.state = 'value'; this.push(this.charcode); break;
+                case multi: this.unexpected(charcode); break;
+                default: this.state = 'value'; this.push(); break;
             }
         },
-        string: () => {
-            switch (this.charcode) {
-                case backslash:  this.state = 'escape'; break;
+        string: (charcode: number) => {
+            switch (charcode) {
+                case backslash: this.state = 'escape'; break;
                 case quote: this.pop(); break;
                 // all other are allowed string chars
             }
         },
         escape: () => {
-            if(escapedchars.includes(this.charcode)) {
-                this.state = 'string'
-            } else {
-                throw new Error(`syntax error valid escaped sequences are \\b \\f \\n \\r \\" or \\ found \\${String.fromCharCode(this.charcode)}`)
-            }
+            this.state = 'string'
         },
-        value: () => {
-            if ([ocurly, ccurly, obracket, cbracket, colon, coma, quote, space, multi].includes(this.charcode)) {
+        value: (charcode: number) => {
+            if ([ocurly, ccurly, obracket, cbracket, colon, comma, quote, space, multi].includes(charcode)) {
                 // value end
-                const item = this.pop()
-                const value = item.value.map(c => String.fromCharCode(c)).join('')
-                if (['true','false','null'].includes(value) || /^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$/.test(value)) {
-                    this.automata[this.state]() // charcode was not consumed
-                } else {
-                    throw new Error(`syntax error expected true,false,null or a number found ${item.value}`)
-                }
-
-            } else {
-                this.put(this.charcode)
+                this.pop()
+                // new char was not consumed
+                this.automata[this.state](charcode)
             }
         },
     }
@@ -153,31 +122,35 @@ export class GeojsonParser extends GeofileParser{
     // push current state and offset in stack
     private push(charcode?: number) {
         const value = (charcode === undefined || charcode === null) ? [] : [charcode]
-        this.stack.push({ state: this.state, rank: 0, pos: this.pos, len: 0, value })
+        const item = { state: this.state, rank: 0, pos: this.pos, len: 0, value }
+        this.stack.push(item)
+        if (this.isfeature()) this.curfeat = item
     }
 
     // pop saved state and call onobject if object have been parsed
     private pop(): ParserItem {
+        const isfeature = this.isfeature()
         const item = this.stack.pop();
         this.state = this.stack.length ? this.stack[this.stack.length - 1].state : 'any';
 
-        if (item.state === 'object' && this.stack.length === 2 && this.stack[1].state === 'array') {
-            item.rank = this.rank++
-            item.len = this.pos - item.pos + 1
-            this.pending++
-            this.onhandle(item,this.line,this.col)
-                .then( () => this.pending--)
-                .catch(() => this.pending--)
+        if (isfeature) {
+            this.curfeat = null
+            const buffer = Uint8Array.from(item.value)
+            const json = buffer.getUtf8(0,item.value.length)
+            try  {
+                const feature = JSON.parse(json) as GeofileFeature
+                feature.rank = this.expected()
+                feature.pos = item.pos
+                feature.len = this.pos - item.pos + 1
+                this.produce(feature)
+            } catch (err) {
+                throw Error(`JSON.parse() error while parsing [${item.pos},${item.pos+item.len}[`)
+            }
         }
         return item
     }
-    private put(charcode?: number) {
-        if (this.stack.length > 0) {
-            this.stack[this.stack.length-1].value.push(charcode)
-        }
-    }
 
-    private unexpected() {
-        throw new Error(`Unexpected char '${String.fromCharCode(this.charcode)}'`)
+    private unexpected(charcode: number) {
+        throw new Error(`Syntax error unexpected char '${String.fromCharCode(charcode)}'`)
     }
 }

@@ -1,6 +1,6 @@
 import { Geojson } from './geojson'
 import { GeofileIndexType } from './geoindex'
-import { paris, simple, withescape, withescapeerr } from '../data/data'
+import { paris, simple, withescape, withescapeerr, withnull } from '../data/geojsondata'
 import { GeofileFeature } from './geofile';
 
 describe('Test geojson.ts', () => {
@@ -15,27 +15,36 @@ describe('Test geojson.ts', () => {
     test('Should fail to create Geojson', () => {
         expect(() => { new Geojson('myclass', null) }).toThrow(Error);
     })
-    test('Should fail to parse dummy json', () => {
-        const geojson = new Geojson('myclass', new Blob(['{ beurk! }']))
-        expect(async () => { for await (const f of geojson.parse()) { f } }).rejects.toMatch('Unexpected char');
-    })
 
+    test('Should fail to parse dummy json', async () => {
+        const geojson = new Geojson('myclass', new Blob(['{ beurk! }']))
+        let err
+        try { for await (const f of geojson.parse()) { f } }  
+        catch (e) {  err = e }
+        expect(err).toBeInstanceOf(Error)
+        expect(err.message).toMatch('Syntax error unexpected char');
+})
 
     test('should parse simple geojson', async () => {
         const geojson = new Geojson('myclass', new Blob([simple]))
         let count = 0
-        for await (const f of geojson.parse()) {
-            if (f) count++
-        }
+        for await (const f of geojson.parse()) { if (f) count++ }
         expect(count).toEqual(3);
     })
+
     test('should parse paris geojson', async () => {
         const geojson = new Geojson('myclass', new Blob([paris]))
         let count = 0
-        for await (const f of geojson.parse()) {
-            if (f) count++
-        }
+        for await (const f of geojson.parse()) { if (f) count++ }
         expect(count).toEqual(71);
+    })
+
+    test('should parse with null attribute geojson', async () => {
+        const geojson = new Geojson('myclass', new Blob([withnull]))
+        const all = []
+        for await (const f of geojson.parse()) { if (f) all.push(f) }
+        [0,3,5].forEach(i => expect(all[i].properties.name).toBeNull())
+        expect(all.length).toEqual(6);
     })
 
     test('should parse geojson with escape char', async () => {
@@ -51,7 +60,11 @@ describe('Test geojson.ts', () => {
     test('should fail to parse geojson with invalid escape char', async () => {
         const geojson = new Geojson('myclass', new Blob([withescapeerr]))
         let count = 0
-        expect(async () => { for await (const f of geojson.parse()) { f && count++ } }).rejects.toMatch('syntax error valid escaped sequences');
+        let err
+        try { for await (const f of geojson.parse()) { f && count++ } }
+        catch (e) { err = e }
+        expect(err).toBeInstanceOf(Error);
+        expect(err.message).toMatch('JSON.parse() error while parsing');
         expect(count).toEqual(0);
     })
 
@@ -108,6 +121,13 @@ describe('Test geojson.ts', () => {
         expect(features.length).toBe(2);
         expect(features[0].proj).toBe('EPSG:3857');
     })
+
+    test('should get extent from geofile Geojson.extent()', async () => {
+        const geojson = new Geojson('myclass', new Blob([simple]))
+        await geojson.buildIndexes([])
+        expect(geojson.extent).toStrictEqual([-100, -100, 100, 100]);
+    })
+
     test('should access features by bbox Geojson.bbox()', async () => {
         const geojson = new Geojson('myclass', new Blob([simple]))
         await geojson.buildIndexes([])
@@ -139,6 +159,15 @@ describe('Test geojson.ts', () => {
         expect(features[0].properties.name).toBe('Mary Poppins');
     })
 
+    test('should attribute search ordered with null Geojson.search()', async () => {
+        const geojson = new Geojson('myclass', new Blob([withnull]))
+        await geojson.buildIndexes([{ attribute: 'name', type: GeofileIndexType.ordered }])
+        const features = await geojson.search('name', ['Mary Poppins'])
+        expect(features.length).toBe(1);
+        expect(features[0].properties.name).toBe('Mary Poppins');
+    })
+
+
     test('should attribute fuzzy search exact Geojson.fuzzy()', async () => {
         const geojson = new Geojson('myclass', new Blob([simple]))
         await geojson.buildIndexes([{ attribute: 'name', type: GeofileIndexType.fuzzy }])
@@ -146,7 +175,6 @@ describe('Test geojson.ts', () => {
         expect(features.length).toBe(1);
         expect(features[0].properties.name).toBe('Harry Potter');
     })
-
 
     test('should attribute fuzzy search nearby Geojson.fuzzy()', async () => {
         const geojson = new Geojson('myclass', new Blob([simple]))
@@ -179,8 +207,5 @@ describe('Test geojson.ts', () => {
         const features = await geojson.prefix('name', 'Eliz DummY')
         expect(features.length).toBe(0);
     })
-
-
-
 
 })

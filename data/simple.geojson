@@ -1,0 +1,41 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [-10.000, -10.000]
+            },
+            "properties": {
+                "name": "Harry Potter",
+                "gender": "Male",
+                "address": "52 Privet Drive, Little Whinging"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [10.000, 10.000]
+            },
+            "properties": {
+                "name": "Mary Poppins",
+                "gender": "Female",
+                "address": "17 Cherry Tree Lane, London"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [10.000, -10.000]
+            },
+            "properties": {
+                "name": "Queen Elizabeth II",
+                "gender": "Female",
+                "address": "Buckingham Palace, London"
+            }
+        }
+    ]
+}

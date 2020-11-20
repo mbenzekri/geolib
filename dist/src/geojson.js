@@ -13,10 +13,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Geojson = void 0;
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-const polyfill_1 = require("./polyfill");
+require("./polyfill");
 const geofile_1 = require("./geofile");
 const geojsonparser_1 = require("./geojsonparser");
-polyfill_1._();
 /**
  * File System geojson class
  */
@@ -26,51 +25,38 @@ class Geojson extends geofile_1.Geofile {
         this.assert(!!datafile, `Geojson.constructor(): data file paramemter is not provided or nullish`);
         this.file = datafile;
     }
-    get parser() {
-        return new geojsonparser_1.GeojsonParser(this.file);
+    get parser() { return new geojsonparser_1.GeojsonParser(this.file); }
+    async open() { return; }
+    async close() { return; }
+    async readFeature(rank) {
+        const handle = this.getHandle(rank);
+        try {
+            const json = await this.file.readText(handle.pos, handle.len);
+            return JSON.parse(json);
+        }
+        catch (e) {
+            throw new Error(`Geojson.readFeature(): unable to read feature due to ${e.message | e.toString()}`);
+        }
     }
-    load() {
-        return Promise.resolve();
-    }
-    release() {
-        return Promise.resolve();
-    }
-    readFeature(rank) {
-        return new Promise((resolve, reject) => {
-            const handle = (typeof rank === 'number') ? this.getHandle(rank) : rank;
-            const slice = this.file.slice(handle.pos, handle.pos + handle.len);
-            const r = new FileReader();
-            r.onerror = () => reject(`Geojson.readFeature(): unable to read feature due to ${r.error.message}`);
-            r.onload = () => resolve(JSON.parse(r.result));
-            r.readAsText(slice);
-        });
-    }
-    readFeatures(rank, limit) {
+    async readFeatures(rank, limit) {
         const hmin = this.getHandle(rank);
         const hmax = this.getHandle(rank + limit - 1);
         const length = (hmax.pos - hmin.pos + hmax.len);
-        const slice = this.file.slice(hmin.pos, hmin.pos + length);
-        return new Promise((resolve, reject) => {
-            const r = new FileReader();
-            r.onerror = () => reject(`Geojson.readFeatures(): unable to read feature due to ${r.error.message}`);
-            r.onload = () => {
-                try {
-                    const dv = new DataView(r.result);
-                    const features = [];
-                    for (let i = 0; i < limit; i++) {
-                        const handle = this.getHandle(rank + i);
-                        const text = dv.getUtf8(handle.pos - hmin.pos, handle.len);
-                        const feature = JSON.parse(text);
-                        features.push(feature);
-                    }
-                    resolve(features);
-                }
-                catch (e) {
-                    reject(`Geojson.readFeatures(): unable to read feature due to ${e.toString()}`);
-                }
-            };
-            r.readAsArrayBuffer(slice);
-        });
+        try {
+            const array = await this.file.read(hmin.pos, hmin.pos + length);
+            const dv = new DataView(array);
+            const features = [];
+            for (let i = 0; i < limit; i++) {
+                const handle = this.getHandle(rank + i);
+                const text = dv.getUtf8(handle.pos - hmin.pos, handle.len);
+                const feature = JSON.parse(text);
+                features.push(feature);
+            }
+            return features;
+        }
+        catch (e) {
+            throw new Error(`Geojson.readFeatures(): unable to read feature due to ${e.message | e.toString()}`);
+        }
     }
 }
 exports.Geojson = Geojson;

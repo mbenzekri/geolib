@@ -25,6 +25,20 @@ declare global {
         setAscii(offset: number, str: string, length?: number): void;
         getAscii(offset: number, length: number): string;
     }
+    interface Blob {
+        read(offset?: number, length?: number): Promise<ArrayBuffer>;
+        readText(offset?: number, length?: number): Promise<string>;
+        readDv(offset?: number, length?: number): Promise<DataView>;
+    }
+    interface ArrayBuffer {
+        getUtf8(offset: number, length: number): string;
+    }
+    interface Uint8Array {
+        getUtf8(offset: number, length: number): string;
+    }
+    interface SharedArrayBuffer {
+        getUtf8(offset: number, length: number): string;
+    }
 }
 declare function _(): void;
 export { _ };

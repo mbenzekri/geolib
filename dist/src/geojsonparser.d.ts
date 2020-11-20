@@ -1,26 +1,16 @@
-import { GeofileHandle, GeofileParser } from "./geofile";
+import { GeofileParser } from "./geofile";
 export declare class GeojsonParser extends GeofileParser {
     private file;
-    private rank;
     private state;
     private stack;
-    private pos;
-    private charcode;
-    private line;
-    private col;
-    private pending;
-    private onhandle;
+    private curfeat;
     constructor(file: Blob);
-    init(onhandle: (handle: GeofileHandle, line: number, col: number) => Promise<void>): File | Blob;
-    process(byte: number): {
-        msg: string;
-        line: number;
-        col: number;
-    };
-    ended(): Promise<void>;
+    private isfeature;
+    begin(): Promise<Blob>;
+    process(byte: number): void;
+    end(): Promise<void>;
     private automata;
     private push;
     private pop;
-    private put;
     private unexpected;
 }

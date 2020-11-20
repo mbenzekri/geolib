@@ -1,5 +1,6 @@
 import * as gt from './geotools';
 import { GeofileIndexType, GeofileIndexDef } from './geoindex';
+import { GeofileParser } from './geofileparser';
 export interface GeofileHandle {
     rank: number;
     pos: number;
@@ -27,11 +28,6 @@ export declare class GeofileFeature {
     pos: number;
     len: number;
     distance?: number;
-}
-export declare abstract class GeofileParser {
-    abstract init(onhandle: (handle: GeofileHandle, line: number, col: number) => Promise<void>): Blob;
-    abstract process(byte: number): any;
-    abstract ended(): any;
 }
 /**
  * filter / action option struct
@@ -64,26 +60,26 @@ export declare abstract class Geofile {
     private indexes;
     get count(): number;
     get loaded(): boolean;
+    get extent(): number[];
     private getIndex;
     abstract get parser(): GeofileParser;
-    abstract load(): Promise<any>;
-    abstract release(): Promise<any>;
-    abstract readFeature(rank: number | GeofileHandle): Promise<GeofileFeature>;
+    abstract open(): Promise<any>;
+    abstract close(): Promise<any>;
+    abstract readFeature(rank: number): Promise<GeofileFeature>;
     abstract readFeatures(rank: number, limit: number): Promise<GeofileFeature[]>;
     assert(value: boolean, msg: string): asserts value is true;
     constructor(name: string, indexFile?: Blob);
-    open(): Promise<void>;
-    close(): Promise<void>;
+    load(): Promise<void>;
+    unload(): Promise<void>;
     getHandle(rank: number): GeofileHandle;
     private initFeature;
     getFeature(rank: number, options?: GeofileFilter): Promise<GeofileFeature>;
     getFeatures(rank: number, limit?: number, options?: GeofileFilter): Promise<GeofileFeature[]>;
-    /** internal method to load all data indexes */
     private loadIndexes;
-    parseIndexes(buffer: ArrayBuffer): void;
     buildIndexes(idxlist: GeofileIndexDef[]): Promise<void>;
+    getIndexBuffer(): Blob;
     protected apply(feature: GeofileFeature, options: GeofileFilter): GeofileFeature;
-    parse(): AsyncGenerator<GeofileFeature, void, unknown>;
+    parse(): AsyncGenerator<GeofileFeature>;
     forEach(options?: GeofileFilter, rank?: number): Promise<void>;
     bbox(bbox: number[], options?: GeofileFilter): Promise<GeofileFeature[]>;
     point(lon: number, lat: number, options?: GeofileFilter): Promise<GeofileFeature[]>;
@@ -106,3 +102,5 @@ export declare abstract class Geofile {
     assertTerminated(dummy?: boolean): asserts dummy is true;
     assertIndexTag(tag: ArrayBuffer): asserts tag;
 }
+export * from './geofileparser';
+export * from './geoindex';

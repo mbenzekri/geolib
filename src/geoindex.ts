@@ -7,6 +7,34 @@ import { binrbush } from './binrbush';
 import proj4 from 'proj4';
 const WGS84 = 'EPSG:4326';
 
+const EXPARRAY_INIT = 1024
+const EXPARRAY_MAX = 64 * 1024
+
+class Uint32ArraySeq {
+    int32arr: Uint32Array
+    setted: number
+    lastbunch: number
+
+    get array() { return this.int32arr.slice(0, this.setted) }
+    get length() { return this.setted }
+
+    constructor(bytes?: number) {
+        this.int32arr = new Uint32Array(bytes || EXPARRAY_INIT)
+        this.lastbunch = EXPARRAY_INIT
+        this.setted = 0
+    }
+    private expand() {
+        const old = this.int32arr
+        this.lastbunch = this.lastbunch < EXPARRAY_MAX ? this.lastbunch * 2 : this.lastbunch
+        this.int32arr = new Uint32Array(old.length + this.lastbunch)
+        this.int32arr.set(old)
+    }
+    add(...uint32: number[]) {
+        while (this.setted + uint32.length > this.int32arr.length) this.expand()
+        this.int32arr.set(uint32, this.setted)
+        this.setted += uint32.length
+    }
+}
 export enum GeofileIndexType {
     handle = 'handle',
     rtree = 'rtree',
@@ -27,44 +55,36 @@ export abstract class GeofileIndex {
     protected dv: DataView;
     protected geofile: Geofile;
     get size() { return this.dv ? this.dv.byteLength : 0 }
-    get name() { return `${this.attribute}/${this.type}`} 
+    get name() { return `${this.attribute}/${this.type}` }
+    get array() { return this.dv ? this.dv.buffer : null}
     abstract getRecord(rank): { rank: number, [key: string]: any }
     abstract get count(): number
+    abstract begin(): void
+    abstract index(feature: GeofileFeature): void
+    abstract end(): void
 
     assertRank(idxrank: number): asserts idxrank {
         if (idxrank >= 0 && idxrank < this.count) return;
-        throw Error(`GeofileIndexPrefix [${this.geofile.name}/${this.attribute}] :  rank=${idxrank} not in domain [0,${this.count}[`)
+        throw Error(`GeofileIndex ${this.type} [${this.geofile.name}/${this.attribute}] :  rank=${idxrank} not in domain [0,${this.count}[`)
     }
 
-    protected constructor(geofile: Geofile, type: GeofileIndexType, attribute: string, dv?: DataView) {
-        this.attribute = attribute
+    protected constructor(type: GeofileIndexType, attribute: string, geofile: Geofile, dv?: DataView) {
         this.type = type
+        this.attribute = attribute
         this.dv = dv
         this.geofile = geofile
     }
 
-    static async build(type: GeofileIndexType, geofile: Geofile, attribute: string): Promise<ArrayBuffer> {
-        switch (type) {
-            case GeofileIndexType.handle: return GeofileIndexHandle.compile(geofile)
-            case GeofileIndexType.rtree: return GeofileIndexRtree.compile(geofile)
-            case GeofileIndexType.ordered: return GeofileIndexOrdered.compile(geofile, attribute)
-            case GeofileIndexType.prefix: return GeofileIndexPrefix.compile(geofile, attribute)
-            case GeofileIndexType.fuzzy: return GeofileIndexFuzzy.compile(geofile, attribute)
-        }
-        throw Error(`Geofile.create() : unknown index type "${type}"`)
-    }
-    static create(type: GeofileIndexType, geofile: Geofile, dv: DataView, attribute: string): GeofileIndex {
+    static create(type: GeofileIndexType, attribute: string, geofile: Geofile, dv?: DataView): GeofileIndex {
         switch (type) {
             case GeofileIndexType.handle: return new GeofileIndexHandle(geofile, dv)
             case GeofileIndexType.rtree: return new GeofileIndexRtree(geofile, dv)
-            case GeofileIndexType.ordered: return new GeofileIndexOrdered(geofile, dv, attribute)
-            case GeofileIndexType.prefix: return new GeofileIndexPrefix(geofile, dv, attribute)
-            case GeofileIndexType.fuzzy: return new GeofileIndexFuzzy(geofile, dv, attribute)
+            case GeofileIndexType.ordered: return new GeofileIndexOrdered(attribute, geofile, dv)
+            case GeofileIndexType.prefix: return new GeofileIndexPrefix(attribute, geofile, dv)
+            case GeofileIndexType.fuzzy: return new GeofileIndexFuzzy(attribute, geofile, dv)
             default: throw Error(`Geofile.create() : unknown index type "${type}"`)
         }
     }
-
-
 }
 
 export class GeofileIndexHandle extends GeofileIndex {
@@ -73,27 +93,32 @@ export class GeofileIndexHandle extends GeofileIndex {
     // pos: is offset in datafile to retrieve feature data
     // len: is length in bytes of the feature data
     static RECSIZE = 8 // 2 x uint32
+    // only used durind build index phase (begin/index/end )
+    seq: Uint32ArraySeq
+
     get count() { return this.dv ? this.dv.byteLength / GeofileIndexHandle.RECSIZE : 0 }
 
     constructor(geofile: Geofile, dv?: DataView,) {
-        super(geofile, GeofileIndexType.handle, 'rank', dv)
+        super(GeofileIndexType.handle, 'rank', geofile, dv)
     }
 
-    static async compile(geofile: Geofile): Promise<ArrayBuffer> {
-        const array: number[] = []
-        for await (const feature of geofile.parse()) {
-            array.push(feature.pos, feature.len)
-        }
-        return new Uint32Array(array).buffer
+    begin() {
+        this.seq = new Uint32ArraySeq()
+    }
+    index(feature: GeofileFeature) {
+        this.seq.add(feature.pos, feature.len)
+    }
+    end() {
+        this.dv = new DataView(this.seq.array.buffer)
+        this.seq = null;
     }
 
     getRecord(rank: number): GeofileHandle {
         const offset = rank * GeofileIndexHandle.RECSIZE
-        const pos = this.dv.getUint32(offset,true)
-        const len = this.dv.getUint32(offset + 4,true)
+        const pos = this.dv.getUint32(offset, true)
+        const len = this.dv.getUint32(offset + 4, true)
         return { rank, pos, len }
     }
-
 
 }
 
@@ -108,33 +133,46 @@ export class GeofileIndexRtree extends GeofileIndex {
     // next : is the offset of next brother node  
     static RECSIZE = 25 // uint8 + 4 x float32 + 2 x uint32
     get count() { return this.dv ? this.dv.byteLength / GeofileIndexRtree.RECSIZE : 0 }
+    // only used durind build index phase (begin/index/end )
+    private clusters: number[][]
+    private cluster = []
+    private bounds: number[]
 
     private rtree: BinRtree
     get extent(): number[] { return this.rtree.extent(); }
 
     constructor(geofile: Geofile, dv?: DataView,) {
-        super(geofile, GeofileIndexType.rtree, 'geometry', dv)
+        super(GeofileIndexType.rtree, 'geometry', geofile, dv)
         this.rtree = new BinRtree(dv);
     }
 
-    static async compile(geofile: Geofile): Promise<ArrayBuffer> {
+    begin() {
+        this.clusters = []
+        this.cluster = []
+        this.bounds = [null, null, null, null, 0, 0]
+    }
+
+    index(feature: GeofileFeature) {
         const clustersize = 200
-        const clusters: number[][] = [];
-        let cluster = []
-        let bounds = [null, null, null, null, 0, 0];
-        for await (const feature of geofile.parse()) {
-            if (cluster.length === clustersize && !bounds.some(val => val === null)) {
-                clusters.push(bounds);
-                cluster = []
-                bounds = [null, null, null, null, feature.rank + 1, 0];
-            }
-            cluster.push(feature)
-            this.bboxextend(bounds, feature.bbox)
+        if (this.cluster.length === clustersize && !this.bounds.some(val => val === null)) {
+            this.clusters.push(this.bounds);
+            this.cluster = []
+            this.bounds = [null, null, null, null, feature.rank + 1, 0];
         }
-        if (cluster.length > 0 && !bounds.some(val => val === null)) clusters.push(bounds)
+        this.cluster.push(feature)
+        if (feature.bbox) this.bboxextend(this.bounds, feature.bbox)
+    }
+
+    end() {
+        if (this.cluster.length > 0 && !this.bounds.some(val => val === null)) this.clusters.push(this.bounds)
         const tree = new binrbush();
-        (<any>tree).load(clusters);
-        return tree.toBinary()
+        (<any>tree).load(this.clusters);
+        const array = tree.toBinary()
+        this.dv = new DataView(array)
+        this.rtree = new BinRtree(this.dv);
+        this.clusters = null
+        this.cluster = null
+        this.bounds = null
     }
 
     getRecord(rank: number) {
@@ -143,7 +181,6 @@ export class GeofileIndexRtree extends GeofileIndex {
     }
 
     bbox(bbox: number[], options: GeofileFilter = {}): Promise<GeofileFeature[]> {
-        const start = Date.now();
         const projbbox = options.targetProjection ? gt.transform_e(bbox, this.geofile.proj, options.targetProjection) : null;
 
         // add bbox filter
@@ -156,7 +193,7 @@ export class GeofileIndexRtree extends GeofileIndex {
         // scan rtree index.
         const bboxlist: number[][] = this.rtree.search(bbox).filter(ibbox => gt.intersects_ee(ibbox, bbox));
         const promises = bboxlist.map(ibbox => this.geofile.getFeatures(ibbox[4], ibbox[5], options));
-        return Promise.clean<GeofileFeature>(promises).then(f => this.logtimes(start, bboxlist, f));
+        return Promise.clean<GeofileFeature>(promises)
     }
 
     point(lon: number, lat: number, options: GeofileFilter = {}): Promise<GeofileFeature[]> {
@@ -193,7 +230,7 @@ export class GeofileIndexRtree extends GeofileIndex {
             .then((features) => features.length ? features.reduce((prev, cur) => !cur ? prev : !prev ? cur : (prev.distance < cur.distance) ? prev : cur) : null);
     }
 
-    private static bboxextend(bounds: number[], bbox: number[]) {
+    private bboxextend(bounds: number[], bbox: number[]) {
         if (bounds[0] == null || bbox[0] < bounds[0]) { bounds[0] = bbox[0]; }
         if (bounds[1] == null || bbox[1] < bounds[1]) { bounds[1] = bbox[1]; }
         if (bounds[2] == null || bbox[2] > bounds[2]) { bounds[2] = bbox[2]; }
@@ -201,19 +238,11 @@ export class GeofileIndexRtree extends GeofileIndex {
         bounds[5]++;
     }
 
-    private logtimes(start: number, bboxlist: number[][], features: GeofileFeature[]): GeofileFeature[] {
-        const selectivity = Math.round(100 * bboxlist.reduce((p, c) => p + c[5], 0) / this.geofile.count);
-        const elapsed = (Date.now() - start);
-        const best = Math.round(100 * features.length / this.geofile.count);
-        const objsec = Math.round(features.length / (elapsed / 1000));
-        console.log(`Geofile.search [${this.geofile.name}]: ${features.length} o / ${elapsed} ms /  ${objsec} obj/s sel: ${selectivity}% (vs ${best}%)`);
-        return features;
-    }
 }
 
 export abstract class GeofileIndexAttribute extends GeofileIndex {
 
-    private next(idxrank: number, searched: any[], compare: (a:unknown,b:unknown) => number, options: GeofileFilter, found: GeofileFeature[] = []): Promise<GeofileFeature[]> {
+    private next(idxrank: number, searched: any[], compare: (a: unknown, b: unknown) => number, options: GeofileFilter, found: GeofileFeature[] = []): Promise<GeofileFeature[]> {
         if (idxrank >= this.count) return Promise.resolve(found)
         const record = this.getRecord(idxrank);
         return this.geofile.getFeature(record.rank)
@@ -263,26 +292,31 @@ export class GeofileIndexOrdered extends GeofileIndexAttribute {
     get recsize() { return 4 } // 1 x uint32
     static RECSIZE = 4 // 1 x uint32
     get count() { return this.dv ? this.dv.byteLength / GeofileIndexOrdered.RECSIZE : 0 }
+    // only used durind build index phase (begin/index/end )
+    attlist: { value: any, rank: number }[]
 
-    constructor(geofile: Geofile, dv: DataView, attribute: string) {
-        super(geofile, GeofileIndexType.ordered, attribute, dv)
+    constructor(attribute: string, geofile: Geofile, dv: DataView) {
+        super(GeofileIndexType.ordered, attribute, geofile, dv)
     }
 
-    static async compile(geofile: Geofile, attribute: string): Promise<ArrayBuffer> {
-        const attlist = [];
-        for await (const feature of geofile.parse()) {
-            const value = feature.properties[attribute];
-            attlist.push({ value, rank: feature.rank });
-        }
-        attlist.sort(function (a, b) { return (a.value < b.value) ? -1 : (a.value > b.value) ? 1 : 0; });
-        const array = Uint32Array.from(attlist.map( o => o.rank))
-        return array.buffer;
+    begin() {
+        this.attlist=[]
+    }
+    index(feature: GeofileFeature) {
+        const value = feature.properties[this.attribute];
+        this.attlist.push({ value, rank: feature.rank });
+    }
+    end() {
+        this.attlist.sort((a,b) => this.compare(a.value,b.value,a.rank,b.rank));
+        const array = Uint32Array.from(this.attlist.map(o => o.rank))
+        this.dv = new DataView(array.buffer)
+        this.attlist = null
     }
 
     getRecord(idxrank: number) {
         this.assertRank(idxrank)
         const offset = idxrank * 4
-        const rank = this.dv.getUint32(offset,true);
+        const rank = this.dv.getUint32(offset, true);
         return { rank };
     }
 
@@ -291,13 +325,22 @@ export class GeofileIndexOrdered extends GeofileIndexAttribute {
             const value = feature.properties[this.attribute]
             return feature && searched.some(v => v === value);
         };
-        const compare = (key, feature) => {
-            const value = feature.properties[this.attribute]
-            return (feature && key === value) ? 0 : (key > value) ? 1 : -1;
-        };
-        options = setFilter(options, filter);
+        const compare = (key, feature) => this.compare(key,feature.properties[this.attribute])
+        options = setFilter(options, filter)
         return this.binarySearch(searched, compare, options);
     }
+
+    private compare (a: any, b: any , ra = 0, rb = 0) {
+        a = (a === undefined) ? null : a;
+        b = (b === undefined) ? null : b;
+        const rdiff = (ra - rb)
+        if (a === null) return (b === null) ? rdiff : -1
+        if (b === null) return  1
+        if (a < b) return -1
+        if (a > b) return 1
+        return rdiff
+    }
+
 
 }
 
@@ -308,29 +351,33 @@ export class GeofileIndexFuzzy extends GeofileIndexAttribute {
     // rank: rank of a feature associated to the fuzzy hash
     static RECSIZE = 8  // 2 x uint32
     get count() { return this.dv ? this.dv.byteLength / GeofileIndexFuzzy.RECSIZE : 0 }
+    // only used durind build index phase (begin/index/end )
+    attlist: { hash: number, rank: number }[]
 
-    constructor(geofile: Geofile, dv: DataView, attribute: string) {
-        super(geofile, GeofileIndexType.fuzzy, attribute, dv)
+    constructor(attribute: string, geofile: Geofile, dv: DataView) {
+        super(GeofileIndexType.fuzzy, attribute, geofile, dv)
     }
-
-    static async compile(geofile: Geofile, attribute: string): Promise<ArrayBuffer> {
-        const attlist: { hash: number, rank: number }[] = [];
-        for await (const feature of geofile.parse()) {
-            const value = feature.properties[attribute].toString();
+    begin() {
+        this.attlist = []
+    }
+    index(feature: GeofileFeature) {
+            const value = feature.properties[this.attribute].toString();
             const hash = value ? value.fuzzyhash() : 0;
-            attlist.push({ hash, rank: feature.rank });
-        }
-        attlist.sort(function (a, b) { return (a.hash < b.hash) ? -1 : (a.hash > b.hash) ? 1 : 0; });
-        const data = attlist.reduce((res,att) => { res.push(att.hash,att.rank); return res },[])
+            this.attlist.push({ hash, rank: feature.rank });
+    }
+    end() {
+        this.attlist.sort(function (a, b) { return (a.hash < b.hash) ? -1 : (a.hash > b.hash) ? 1 : 0; });
+        const data = this.attlist.reduce((res, att) => { res.push(att.hash, att.rank); return res }, [])
         const array = Uint32Array.from(data);
-        return array.buffer
+        this.dv = new DataView(array.buffer)
+        this.attlist = null
     }
 
     getRecord(idxrank: number) {
         this.assertRank(idxrank)
         const offset = idxrank * GeofileIndexFuzzy.RECSIZE
-        const hash = this.dv.getUint32(offset,true);
-        const rank = this.dv.getUint32(offset + 4,true);
+        const hash = this.dv.getUint32(offset, true);
+        const rank = this.dv.getUint32(offset + 4, true);
         return { rank, hash };
     }
 
@@ -338,11 +385,11 @@ export class GeofileIndexFuzzy extends GeofileIndexAttribute {
         const maxdist = options.maxTextDistance | 5;
         const hashes: Set<number> = new Set();
         hashes.add(searched.fuzzyhash());
-        [...hashes.values()].forEach( hash => String.fuzzyExtend(hash).forEach(hash => hashes.add(hash)) );
-        [...hashes.values()].forEach( hash => String.fuzzyExtend(hash).forEach(hash => hashes.add(hash)) );
+        [...hashes.values()].forEach(hash => String.fuzzyExtend(hash).forEach(hash => hashes.add(hash)));
+        [...hashes.values()].forEach(hash => String.fuzzyExtend(hash).forEach(hash => hashes.add(hash)));
         const values = [...hashes.values()]
 
-        options = setFilter(options, (f: GeofileFeature) => 
+        options = setFilter(options, (f: GeofileFeature) =>
             searched.levenshtein(f.properties[this.attribute]) < maxdist
         );
         const compare = (key, feature) => key - feature.properties[this.attribute].fuzzyhash();
@@ -366,36 +413,39 @@ export class GeofileIndexPrefix extends GeofileIndexAttribute {
     // rank: rank of a feature associated with this prefix
     static RECSIZE = 8 // 2 x uint32
     get count() { return this.dv ? this.dv.byteLength / GeofileIndexPrefix.RECSIZE : 0 }
+    // only used durind build index phase (begin/index/end )
+    preflist: { value: string, rank: number }[]
 
-    constructor(geofile: Geofile, dv: DataView, attribute: string) {
-        super(geofile, GeofileIndexType.prefix, attribute, dv)
+    constructor(attribute: string, geofile: Geofile, dv: DataView) {
+        super(GeofileIndexType.prefix, attribute, geofile, dv)
+    }
+    begin() {
+        this.preflist = [];   
     }
 
-    static async compile(geofile: Geofile, attribute: string): Promise<ArrayBuffer> {
-        const preflist: { value: string, rank: number }[] = [];
-        for await (const feature of geofile.parse()) {
-            const value = feature.properties[attribute];
-            const wlist = value ? `${value}`.wordlist() : [];
-            wlist.forEach((w: string) => preflist.push({ value: w.substring(0, 4), rank: feature.rank }));
-        }
-
-        preflist.sort(function (a, b) { return (a.value < b.value) ? -1 : (a.value > b.value) ? 1 : (a.rank - b.rank); });
-        const array = new Uint32Array(2 * preflist.length).buffer;
-        const dv = new DataView(array);
-        preflist.forEach((att, index) => {
-            const offset = index * GeofileIndexPrefix.RECSIZE;
-            dv.setAscii(offset,'    ')
-            dv.setAscii(offset,att.value,4)
-            dv.setUint32(offset + 4, att.rank,true);
-        });
-
-        return array
+    index(feature: GeofileFeature) {
+        const value = feature.properties[this.attribute];
+        const wlist = value ? `${value}`.wordlist() : [];
+        wlist.forEach((w: string) => this.preflist.push({ value: w.substring(0, 4), rank: feature.rank }));
     }
+
+    end() {
+        this.preflist.sort(function (a, b) { return (a.value < b.value) ? -1 : (a.value > b.value) ? 1 : (a.rank - b.rank); });
+        this.dv = new DataView(new ArrayBuffer(this.preflist.length* GeofileIndexPrefix.RECSIZE));
+        this.preflist.reduce((offset, att) => {
+            this.dv.setAscii(offset, '    ')
+            this.dv.setAscii(offset, att.value, 4)
+            this.dv.setUint32(offset + 4, att.rank, true);
+            return offset + GeofileIndexPrefix.RECSIZE
+        },0);
+        this.preflist = null
+    }
+
     getRecord(idxrank: number) {
         this.assertRank(idxrank)
         const offset = idxrank * GeofileIndexPrefix.RECSIZE
-        const prefix = this.dv.getAscii(offset,4)
-        const rank = this.dv.getUint32(offset + 4,true);
+        const prefix = this.dv.getAscii(offset, 4)
+        const rank = this.dv.getUint32(offset + 4, true);
         return { rank, prefix };
     }
 
@@ -423,15 +473,15 @@ export class GeofileIndexPrefix extends GeofileIndexAttribute {
     private bsearch(prefixes: string[], found?: Set<number>, imin = 0, imax = this.count - 1): Set<number> {
 
         // is dichotomy terminated
-        if (imax < imin) { 
-            return new Set(); 
+        if (imax < imin) {
+            return new Set();
         }
 
         // calculate midpoint to divide set
         const imid = Math.floor((imax + imin) / 2);
         const record = this.getRecord(imid);
-        if (imin === imax) { 
-            return (prefixes.length > 1) ? new Set() : this.intersect(imin, record.prefix, found); 
+        if (imin === imax) {
+            return (prefixes.length > 1) ? new Set() : this.intersect(imin, record.prefix, found);
         }
 
         // divide in two subset
