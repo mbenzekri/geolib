@@ -7,22 +7,22 @@ const ccurly = '}'.charCodeAt(0);
 const obracket = '['.charCodeAt(0);
 const cbracket = ']'.charCodeAt(0);
 const colon = ':'.charCodeAt(0);
-const coma = ','.charCodeAt(0);
+const comma = ','.charCodeAt(0);
 const quote = '"'.charCodeAt(0);
 const space = ' '.charCodeAt(0);
+const backslash = '\\'.charCodeAt(0);
 const multi = 128;
 class GeojsonParser extends geofile_1.GeofileParser {
     constructor(file) {
         super();
-        this.pending = 0;
         // state automata 
         this.automata = {
-            any: () => {
-                switch (this.charcode) {
+            any: (charcode) => {
+                switch (charcode) {
                     case space: break;
                     case ocurly:
                         this.state = 'object';
-                        this.push();
+                        this.push(charcode);
                         break;
                     case obracket:
                         this.state = 'array';
@@ -35,18 +35,18 @@ class GeojsonParser extends geofile_1.GeofileParser {
                     case ccurly:
                     case cbracket:
                     case colon:
-                    case coma:
+                    case comma:
                     case multi:
-                        this.unexpected();
+                        this.unexpected(charcode);
                         break;
                     default:
                         this.state = 'value';
-                        this.push(this.charcode);
+                        this.push();
                         break;
                 }
             },
-            object: () => {
-                switch (this.charcode) {
+            object: (charcode) => {
+                switch (charcode) {
                     case space: break;
                     case ccurly:
                         this.pop();
@@ -55,14 +55,14 @@ class GeojsonParser extends geofile_1.GeofileParser {
                         this.state = 'field';
                         this.push();
                         break;
-                    case coma: break;
+                    case comma: break;
                     default:
-                        this.unexpected();
+                        this.unexpected(charcode);
                         break;
                 }
             },
-            field: () => {
-                switch (this.charcode) {
+            field: (charcode) => {
+                switch (charcode) {
                     case quote:
                         this.pop();
                         this.state = 'colon';
@@ -70,25 +70,25 @@ class GeojsonParser extends geofile_1.GeofileParser {
                     // all other are allowed field chars
                 }
             },
-            colon: () => {
-                switch (this.charcode) {
+            colon: (charcode) => {
+                switch (charcode) {
                     case space: break;
                     case colon:
                         this.state = 'any';
                         break;
-                    default: this.unexpected();
+                    default: this.unexpected(charcode);
                 }
             },
-            array: () => {
-                switch (this.charcode) {
+            array: (charcode) => {
+                switch (charcode) {
                     case space: break;
-                    case coma: break;
+                    case comma: break;
                     case cbracket:
                         this.pop();
                         break;
                     case ocurly:
                         this.state = 'object';
-                        this.push();
+                        this.push(charcode);
                         break;
                     case obracket:
                         this.state = 'array';
@@ -101,103 +101,88 @@ class GeojsonParser extends geofile_1.GeofileParser {
                     case ccurly:
                     case colon:
                     case multi:
-                        this.unexpected();
+                        this.unexpected(charcode);
                         break;
                     default:
                         this.state = 'value';
-                        this.push(this.charcode);
+                        this.push();
                         break;
                 }
             },
-            string: () => {
-                switch (this.charcode) {
+            string: (charcode) => {
+                switch (charcode) {
+                    case backslash:
+                        this.state = 'escape';
+                        break;
                     case quote:
                         this.pop();
                         break;
-                    // all other are allowed field chars
+                    // all other are allowed string chars
                 }
             },
-            value: () => {
-                if ([ocurly, ccurly, obracket, cbracket, colon, coma, quote, space, multi].includes(this.charcode)) {
+            escape: () => {
+                this.state = 'string';
+            },
+            value: (charcode) => {
+                if ([ocurly, ccurly, obracket, cbracket, colon, comma, quote, space, multi].includes(charcode)) {
                     // value end
-                    this.pos--;
-                    const item = this.pop();
-                    const value = item.value.map(c => String.fromCharCode(c)).join('');
-                    if (['true', 'false', 'null'].includes(value) || /^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$./.test(value))
-                        return;
-                    throw new Error(`syntax error at ${item.pos} expected true,false,null or a number found ${item.value} at ${this.line}:${this.col}`);
-                }
-                else {
-                    this.put(this.charcode);
+                    this.pop();
+                    // new char was not consumed
+                    this.automata[this.state](charcode);
                 }
             },
         };
         this.file = file;
     }
-    init(onhandle) {
-        this.rank = 0;
+    isfeature() {
+        return this.stack.length === 3 && this.stack[2].state === 'object' && this.stack[1].state === 'array';
+    }
+    begin() {
         this.state = 'any';
         this.stack = [];
-        this.pos = 0;
-        this.charcode = 0;
-        this.line = 1;
-        this.col = 0;
-        this.ignore = false;
-        this.onhandle = onhandle;
-        return this.file;
+        this.curfeat = null;
+        return Promise.resolve(this.file);
     }
     process(byte) {
-        if (this.ignore) {
-            // skip backslashed char
-            this.ignore = false;
+        byte = Math.min(multi, Math.max(space, byte));
+        if (this.curfeat) {
+            this.curfeat.value.push(byte);
         }
-        else {
-            this.charcode = byte;
-            if (this.charcode === 0x0A) {
-                this.line++;
-                this.col = 0;
-            }
-            this.col++;
-            if (this.charcode === 0x5C) {
-                this.ignore = true; // ignore next char (backslashed)
-            }
-            else {
-                this.charcode = Math.min(multi, Math.max(space, this.charcode));
-                this.automata[this.state]();
-            }
-        }
-        this.pos++;
+        this.automata[this.state](byte);
     }
-    async ended() {
-        while (this.pending > 0)
-            await new Promise(resolve => setTimeout(resolve, 100));
-        return;
-    }
+    end() { return super.waitend(); }
     // push current state and offset in stack
     push(charcode) {
         const value = (charcode === undefined || charcode === null) ? [] : [charcode];
-        this.stack.push({ state: this.state, rank: 0, pos: this.pos, len: 0, value });
+        const item = { state: this.state, rank: 0, pos: this.pos, len: 0, value };
+        this.stack.push(item);
+        if (this.isfeature())
+            this.curfeat = item;
     }
     // pop saved state and call onobject if object have been parsed
     pop() {
+        const isfeature = this.isfeature();
         const item = this.stack.pop();
-        this.state = this.stack.length ? this.stack[this.stack.length - 1][0] : 'any';
-        if (item.state == 'object' && this.stack.length === 2) {
-            item.rank = this.rank++;
-            this.pending++;
-            this.onhandle(item)
-                .then(() => this.pending--)
-                .catch(() => this.pending--);
+        this.state = this.stack.length ? this.stack[this.stack.length - 1].state : 'any';
+        if (isfeature) {
+            this.curfeat = null;
+            const buffer = Uint8Array.from(item.value);
+            const json = buffer.getUtf8(0, item.value.length);
+            try {
+                const feature = JSON.parse(json);
+                feature.rank = this.expected();
+                feature.pos = item.pos;
+                feature.len = this.pos - item.pos + 1;
+                this.produce(feature);
+            }
+            catch (err) {
+                throw Error(`JSON.parse() error while parsing [${item.pos},${item.pos + item.len}[`);
+            }
         }
         return item;
     }
-    put(charcode) {
-        if (this.stack.length > 0) {
-            this.stack[this.stack.length - 1].value.push(charcode);
-        }
-    }
-    unexpected() {
-        throw new Error(`Unexpected char '${String.fromCharCode(this.charcode)}' at ${this.line}:${this.col} `);
+    unexpected(charcode) {
+        throw new Error(`Syntax error unexpected char '${String.fromCharCode(charcode)}'`);
     }
 }
 exports.GeojsonParser = GeojsonParser;

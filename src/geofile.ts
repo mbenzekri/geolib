@@ -24,9 +24,9 @@ export enum GeofileFiletype {
     KML
 }
 
-export class GeofileFeature {
+export interface GeofileFeature {
     geometry?: gt.Geometry;
-    properties?: { [key: string]: unknown } = {};
+    properties?: { [key: string]: unknown };
     proj?: string;
     bbox?: number[];
     geofile?: Geofile;
@@ -56,7 +56,7 @@ const ATTRIBUTE_LEN = 50
 const INDEXTYPE_LEN = 10
 const METADATAS_OFFSETS: { [key: string]: number } = { attribute: 0, type: ATTRIBUTE_LEN, offset: ATTRIBUTE_LEN + INDEXTYPE_LEN, length: ATTRIBUTE_LEN + INDEXTYPE_LEN + UINT32_LEN }
 
-const getoffsets = (offset: number, offsets: { [key: string]: number }): { [key: string]: number } => {
+function getoffsets(offset: number, offsets: { [key: string]: number }): { [key: string]: number } {
     return Object.keys(offsets).reduce((res, key) => { res[key] = offset + offsets[key]; return res }, {})
 }
 

@@ -1,6 +1,6 @@
 declare global {
     interface String {
-        levenshtein(this: string, str2: string): number;
+        levenshtein(this: string, str2: any): number;
         clean(this: string): string;
         wordlist(this: string): string[];
         prefix(this: string): string[];
@@ -19,6 +19,25 @@ declare global {
     }
     interface Object {
         applyTo(to: Object): Object;
+    }
+    interface DataView {
+        getUtf8(offset: number, length: number): string;
+        setAscii(offset: number, str: string, length?: number): void;
+        getAscii(offset: number, length: number): string;
+    }
+    interface Blob {
+        read(offset?: number, length?: number): Promise<ArrayBuffer>;
+        readText(offset?: number, length?: number): Promise<string>;
+        readDv(offset?: number, length?: number): Promise<DataView>;
+    }
+    interface ArrayBuffer {
+        getUtf8(offset: number, length: number): string;
+    }
+    interface Uint8Array {
+        getUtf8(offset: number, length: number): string;
+    }
+    interface SharedArrayBuffer {
+        getUtf8(offset: number, length: number): string;
     }
 }
 declare function _(): void;

@@ -1,5 +1,6 @@
 import * as gt from './geotools';
 import { GeofileIndexType, GeofileIndexDef } from './geoindex';
+import { GeofileParser } from './geofileparser';
 export interface GeofileHandle {
     rank: number;
     pos: number;
@@ -15,7 +16,7 @@ export declare enum GeofileFiletype {
     GML3 = 6,
     KML = 7
 }
-export declare class GeofileFeature {
+export interface GeofileFeature {
     geometry?: gt.Geometry;
     properties?: {
         [key: string]: unknown;
@@ -28,15 +29,10 @@ export declare class GeofileFeature {
     len: number;
     distance?: number;
 }
-export declare abstract class GeofileParser {
-    abstract init(onhandle: (handle: GeofileHandle) => Promise<void>): Blob;
-    abstract process(byte: number): void;
-    abstract ended(): void;
-}
 /**
  * filter / action option struct
  */
-export declare class GeofileFilter {
+export interface GeofileFilter {
     targetProjection?: string;
     featureFilter?: (feature: GeofileFeature) => boolean;
     featureAction?: (feature: GeofileFeature) => void;
@@ -44,8 +40,8 @@ export declare class GeofileFilter {
     maxTextDistance?: number;
     maxFeature?: number;
     _internalFilter?: ((feature: GeofileFeature) => boolean)[];
-    setFilter(filter: (feature: GeofileFeature) => boolean): GeofileFilter;
 }
+export declare const setFilter: (gf: GeofileFilter, filter: (feature: GeofileFeature) => boolean) => GeofileFilter;
 /**
  * File System spatial data class
  */
@@ -57,7 +53,6 @@ export declare abstract class Geofile {
     static delete(name: string): void;
     readonly name: string;
     readonly proj: string;
-    private _count;
     private _loaded;
     private indexFile;
     private handles;
@@ -65,27 +60,29 @@ export declare abstract class Geofile {
     private indexes;
     get count(): number;
     get loaded(): boolean;
+    get extent(): number[];
     private getIndex;
     abstract get parser(): GeofileParser;
-    abstract load(): Promise<any>;
-    abstract release(): Promise<any>;
-    abstract readFeature(rank: number | GeofileHandle): Promise<GeofileFeature>;
+    abstract open(): Promise<any>;
+    abstract close(): Promise<any>;
+    abstract readFeature(rank: number): Promise<GeofileFeature>;
     abstract readFeatures(rank: number, limit: number): Promise<GeofileFeature[]>;
     assert(value: boolean, msg: string): asserts value is true;
     constructor(name: string, indexFile?: Blob);
-    open(): Promise<void>;
-    close(): Promise<void>;
+    load(): Promise<void>;
+    unload(): Promise<void>;
     getHandle(rank: number): GeofileHandle;
     private initFeature;
     getFeature(rank: number, options?: GeofileFilter): Promise<GeofileFeature>;
     getFeatures(rank: number, limit?: number, options?: GeofileFilter): Promise<GeofileFeature[]>;
-    /** internal method to load all data indexes */
     private loadIndexes;
+    buildIndexes(idxlist: GeofileIndexDef[]): Promise<void>;
+    getIndexBuffer(): Blob;
     protected apply(feature: GeofileFeature, options: GeofileFilter): GeofileFeature;
-    parse(): AsyncIterableIterator<GeofileFeature>;
+    parse(): AsyncGenerator<GeofileFeature>;
     forEach(options?: GeofileFilter, rank?: number): Promise<void>;
     bbox(bbox: number[], options?: GeofileFilter): Promise<GeofileFeature[]>;
-    point(lon: number, lat: number, options: GeofileFilter): Promise<GeofileFeature[]>;
+    point(lon: number, lat: number, options?: GeofileFilter): Promise<GeofileFeature[]>;
     nearest(lon: number, lat: number, radius: number | number[], options?: GeofileFilter): Promise<GeofileFeature>;
     search(attr: string, values: any[], options?: GeofileFilter): Promise<GeofileFeature[]>;
     fuzzy(attr: string, prefixes: string, options?: GeofileFilter): Promise<GeofileFeature[]>;
@@ -104,6 +101,6 @@ export declare abstract class Geofile {
     assertIndex(attribute: string, type: GeofileIndexType): asserts attribute;
     assertTerminated(dummy?: boolean): asserts dummy is true;
     assertIndexTag(tag: ArrayBuffer): asserts tag;
-    parseIndexes(buffer: ArrayBuffer): void;
-    buildIndexes(idxlist: GeofileIndexDef[]): Promise<void>;
 }
+export * from './geofileparser';
+export * from './geoindex';

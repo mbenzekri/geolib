@@ -1,4 +1,14 @@
 import { Geofile, GeofileHandle, GeofileFeature, GeofileFilter } from './geofile';
+declare class Uint32ArraySeq {
+    int32arr: Uint32Array;
+    setted: number;
+    lastbunch: number;
+    get array(): Uint32Array;
+    get length(): number;
+    constructor(bytes?: number);
+    private expand;
+    add(...uint32: number[]): void;
+}
 export declare enum GeofileIndexType {
     handle = "handle",
     rtree = "rtree",
@@ -17,38 +27,48 @@ export declare abstract class GeofileIndex {
     protected geofile: Geofile;
     get size(): number;
     get name(): string;
+    get array(): ArrayBuffer;
     abstract getRecord(rank: any): {
         rank: number;
         [key: string]: any;
     };
     abstract get count(): number;
+    abstract begin(): void;
+    abstract index(feature: GeofileFeature): void;
+    abstract end(): void;
     assertRank(idxrank: number): asserts idxrank;
-    protected constructor(geofile: Geofile, type: GeofileIndexType, attribute: string, dv?: DataView);
-    static build(type: GeofileIndexType, geofile: Geofile, attribute: string): Promise<ArrayBuffer>;
-    static create(type: GeofileIndexType, geofile: Geofile, dv: DataView, attribute: string): GeofileIndex;
+    protected constructor(type: GeofileIndexType, attribute: string, geofile: Geofile, dv?: DataView);
+    static create(type: GeofileIndexType, attribute: string, geofile: Geofile, dv?: DataView): GeofileIndex;
 }
 export declare class GeofileIndexHandle extends GeofileIndex {
     static RECSIZE: number;
+    seq: Uint32ArraySeq;
     get count(): number;
     constructor(geofile: Geofile, dv?: DataView);
-    static compile(geofile: Geofile): Promise<ArrayBuffer>;
+    begin(): void;
+    index(feature: GeofileFeature): void;
+    end(): void;
     getRecord(rank: number): GeofileHandle;
 }
 export declare class GeofileIndexRtree extends GeofileIndex {
     static RECSIZE: number;
     get count(): number;
+    private clusters;
+    private cluster;
+    private bounds;
     private rtree;
     get extent(): number[];
     constructor(geofile: Geofile, dv?: DataView);
-    static compile(geofile: Geofile): Promise<ArrayBuffer>;
+    begin(): void;
+    index(feature: GeofileFeature): void;
+    end(): void;
     getRecord(rank: number): {
         rank: number;
     };
     bbox(bbox: number[], options?: GeofileFilter): Promise<GeofileFeature[]>;
     point(lon: number, lat: number, options?: GeofileFilter): Promise<GeofileFeature[]>;
     nearest(lon: number, lat: number, radius: number | number[], options?: GeofileFilter): Promise<GeofileFeature>;
-    private static bboxextend;
-    private logtimes;
+    private bboxextend;
 }
 export declare abstract class GeofileIndexAttribute extends GeofileIndex {
     private next;
@@ -58,18 +78,31 @@ export declare class GeofileIndexOrdered extends GeofileIndexAttribute {
     get recsize(): number;
     static RECSIZE: number;
     get count(): number;
-    constructor(geofile: Geofile, dv: DataView, attribute: string);
-    static compile(geofile: Geofile, attribute: string): Promise<ArrayBuffer>;
+    attlist: {
+        value: any;
+        rank: number;
+    }[];
+    constructor(attribute: string, geofile: Geofile, dv: DataView);
+    begin(): void;
+    index(feature: GeofileFeature): void;
+    end(): void;
     getRecord(idxrank: number): {
         rank: number;
     };
     search(searched: any[], options?: GeofileFilter): Promise<GeofileFeature[]>;
+    private compare;
 }
 export declare class GeofileIndexFuzzy extends GeofileIndexAttribute {
     static RECSIZE: number;
     get count(): number;
-    constructor(geofile: Geofile, dv: DataView, attribute: string);
-    static compile(geofile: Geofile, attribute: string): Promise<ArrayBuffer>;
+    attlist: {
+        hash: number;
+        rank: number;
+    }[];
+    constructor(attribute: string, geofile: Geofile, dv: DataView);
+    begin(): void;
+    index(feature: GeofileFeature): void;
+    end(): void;
     getRecord(idxrank: number): {
         rank: number;
         hash: number;
@@ -79,8 +112,14 @@ export declare class GeofileIndexFuzzy extends GeofileIndexAttribute {
 export declare class GeofileIndexPrefix extends GeofileIndexAttribute {
     static RECSIZE: number;
     get count(): number;
-    constructor(geofile: Geofile, dv: DataView, attribute: string);
-    static compile(geofile: Geofile, attribute: string): Promise<ArrayBuffer>;
+    preflist: {
+        value: string;
+        rank: number;
+    }[];
+    constructor(attribute: string, geofile: Geofile, dv: DataView);
+    begin(): void;
+    index(feature: GeofileFeature): void;
+    end(): void;
     getRecord(idxrank: number): {
         rank: number;
         prefix: string;
@@ -89,3 +128,4 @@ export declare class GeofileIndexPrefix extends GeofileIndexAttribute {
     private intersect;
     private bsearch;
 }
+export {};

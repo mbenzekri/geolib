@@ -1,11 +1,10 @@
-import { Shapefile } from './shapefile'
 import * as fs from 'fs'
-import {GeofileFeature, GeofileIndexType} from './geofile'
+import {Shapefile,GeofileFeature, GeofileIndexType} from './index'
 
 let simpleshp,simpledbf
 
 // const simpledbf = fs.readFileSync('./data/simple.dbf').buffer
-async function loadfile(filename: string): Promise<ArrayBuffer> {
+async function readfile(filename: string): Promise<ArrayBuffer> {
     return new Promise((resolve,reject) => {
         fs.readFile(filename,(err,data)=> {
             if (err) return reject(Error ('Unable to read simple shapefile'))
@@ -17,8 +16,8 @@ async function loadfile(filename: string): Promise<ArrayBuffer> {
 describe('Test shapefile.ts', () => {
 
     beforeAll(async () => {
-        simpleshp = await loadfile('./data/shp/simple.shp')
-        simpledbf = await loadfile('./data/shp/simple.dbf')
+        simpleshp = await readfile('./data/shp/simple.shp')
+        simpledbf = await readfile('./data/shp/simple.dbf')
     })
     beforeEach(() => null);
 

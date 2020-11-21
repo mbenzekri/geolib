@@ -1,7 +1,5 @@
-import { Csv } from './csv'
 import { simple, csvban, withnull, withheader, simpleskip3, withheaderskip3, withcomment, withempty } from '../data/csvdata'
-import { GeofileFeature } from './geofile'
-import { GeofileIndexType } from './geoindex'
+import { Csv,GeofileFeature,GeofileIndexType } from './index'
 
 describe('Test csv.ts', () => {
     beforeAll(async () => null)

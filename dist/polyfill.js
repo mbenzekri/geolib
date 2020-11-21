@@ -4,6 +4,7 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports._ = void 0;
+const string_decoder_1 = require("string_decoder");
 // mots de liaisons à supprimer (article, conjonctions, ...)
 const SUPPR = [
     'A',
@@ -448,6 +449,76 @@ const CLEANPREFIX = [
     // tslint:disable-next-line:max-line-length
     { name: 'Suppr exces blancs ', op: function (value) { return !value ? value : value.replace(/^ */, '').replace(/ *$/g, '').replace(/ +/g, ' '); } }
 ];
+Blob.prototype.read = function (offset = 0, length = this.size) {
+    if (!this)
+        return Promise.reject("null blob provided to read");
+    const blob = this.slice(offset, offset + length);
+    return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onerror = () => reject(r.error);
+        r.onload = () => resolve(r.result);
+        r.readAsArrayBuffer(blob);
+    });
+};
+Blob.prototype.readDv = function (offset = 0, length = this.size) {
+    if (!this)
+        return Promise.reject("null blob provided to read");
+    const blob = this.slice(offset, offset + length);
+    return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onerror = () => reject(r.error);
+        r.onload = () => resolve(new DataView(r.result));
+        r.readAsArrayBuffer(blob);
+    });
+};
+Blob.prototype.readText = function (offset = 0, length = this.size) {
+    if (!this)
+        return Promise.reject("null blob provided to read");
+    const blob = this.slice(offset, offset + length);
+    return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onerror = () => reject(r.error);
+        r.onload = () => resolve(r.result);
+        r.readAsText(blob);
+    });
+};
+DataView.prototype.setAscii = function (offset, str, length = str.length) {
+    length = Math.min(str.length, length);
+    for (let i = 0; i < length; i++)
+        this.setUint8(offset + i, str.charCodeAt(i));
+};
+DataView.prototype.getAscii = function (offset, length) {
+    const array = [];
+    for (let i = 0; i < length; i++)
+        array.push(String.fromCharCode(this.getUint8(offset + i)));
+    return array.join('');
+};
+Uint8Array.prototype.getUtf8 =
+    ArrayBuffer.prototype.getUtf8 =
+        SharedArrayBuffer.prototype.getUtf8 =
+            function (offset, length) {
+                const buffer = this.slice(offset, offset + length);
+                if (window.TextDecoder) {
+                    const td = new TextDecoder();
+                    return td.decode(buffer).trimzero();
+                }
+                else {
+                    const sd = new string_decoder_1.StringDecoder();
+                    return sd.end(Buffer.from(buffer)).trimzero();
+                }
+            };
+DataView.prototype.getUtf8 = function (offset, length) {
+    if (window.TextDecoder) {
+        const td = new TextDecoder();
+        const buffer = this.buffer.slice(this.byteOffset, this.byteOffset + this.byteLength).slice(offset, offset + length);
+        return td.decode(buffer).trimzero();
+    }
+    else {
+        const sd = new string_decoder_1.StringDecoder();
+        const buffer = this.buffer.slice(this.byteOffset, this.byteOffset + this.byteLength).slice(offset, offset + length);
+        return sd.end(Buffer.from(buffer)).trimzero();
+    }
+};
 String.prototype.trimzero = function () {
     return this.replace(/\000/g, '');
 };
@@ -456,7 +527,9 @@ String.prototype.titlecase = function () {
         .replace(/[-\s][a-z][^-\s]*/ig, txt => txt.charAt(0) + txt.charAt(1).toUpperCase() + txt.substr(2)).trim();
 };
 String.prototype.levenshtein = function levenshtein(str2) {
-    const m = this.length;
+    const str1 = this.clean();
+    str2 = str2.toString().clean();
+    const m = str1.length;
     const n = str2.length;
     const d = [];
     if (!m) {
@@ -473,7 +546,7 @@ String.prototype.levenshtein = function levenshtein(str2) {
     }
     for (let j = 1; j <= n; j++) {
         for (let i = 1; i <= m; i++) {
-            if (this[i - 1] === str2[j - 1]) {
+            if (str1[i - 1] === str2[j - 1]) {
                 d[i][j] = d[i - 1][j - 1];
             }
             else {
@@ -564,12 +637,7 @@ Array.prototype.flatten = function (flat = new Array()) {
  * @returns promise which resolve result will be flattened
  */
 Promise.clean = function (promises) {
-    return Promise.all(promises)
-        .then((array) => {
-        return array.flatten();
-    }, () => {
-        return Promise.resolve([]);
-    });
+    return Promise.all(promises).then(array => array.flatten(), () => Promise.resolve([]));
 };
 /**
  * copy properties from <from> object into <to> object if not existing

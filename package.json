@@ -2,13 +2,13 @@
   "name": "geolib",
   "version": "1.0.0",
   "description": "Library to handle Spatial Data file in Openlayers 3+ (shapefile, geojson, csv, ...)",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
     "test": "jest"
   },
   "author": "Mohamed Ben Zekri",
-  "license": "ISC",
+  "license": "UNLICENSED",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mbenzekri/geolib.git"
@@ -22,6 +22,7 @@
     "@typescript-eslint/eslint-plugin": "^4.6.0",
     "@typescript-eslint/parser": "^4.6.0",
     "eslint": "^7.12.1",
+    "filehound": "^1.17.4",
     "jest": "^26.6.3",
     "ts-jest": "^26.4.4",
     "ts-node": "^9.0.0",

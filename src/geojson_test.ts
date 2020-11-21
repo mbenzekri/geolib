@@ -1,7 +1,5 @@
-import { Geojson } from './geojson'
-import { GeofileIndexType } from './geoindex'
+import { Geojson,GeofileIndexType,GeofileFeature } from './index'
 import { paris, simple, withescape, withescapeerr, withnull } from '../data/geojsondata'
-import { GeofileFeature } from './geofile';
 
 describe('Test geojson.ts', () => {
 
