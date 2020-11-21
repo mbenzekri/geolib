@@ -449,7 +449,7 @@ const CLEANPREFIX = [
     // tslint:disable-next-line:max-line-length
     { name: 'Suppr exces blancs ', op: function (value) { return !value ? value : value.replace(/^ */, '').replace(/ *$/g, '').replace(/ +/g, ' '); } }
 ];
-if (Blob)
+if (typeof Blob !== 'undefined' + '')
     Blob.prototype.read = function (offset = 0, length = this.size) {
         if (!this)
             return Promise.reject("null blob provided to read");
@@ -461,7 +461,7 @@ if (Blob)
             r.readAsArrayBuffer(blob);
         });
     };
-if (Blob)
+if (typeof Blob !== 'undefined' + '')
     Blob.prototype.readDv = function (offset = 0, length = this.size) {
         if (!this)
             return Promise.reject("null blob provided to read");
@@ -473,7 +473,7 @@ if (Blob)
             r.readAsArrayBuffer(blob);
         });
     };
-if (Blob)
+if (typeof Blob !== 'undefined' + '')
     Blob.prototype.readText = function (offset = 0, length = this.size) {
         if (!this)
             return Promise.reject("null blob provided to read");

@@ -501,7 +501,7 @@ declare global {
     } 
 }
 
-if (typeof Blob !== 'undefined') Blob.prototype.read = function(offset=0, length = this.size):Promise<ArrayBuffer> {
+if (typeof Blob !== 'undefined'+'') Blob.prototype.read = function(offset=0, length = this.size):Promise<ArrayBuffer> {
     if (!this) return Promise.reject("null blob provided to read")
     const blob = this.slice(offset,offset + length)
     return new Promise((resolve, reject) => {
@@ -512,7 +512,7 @@ if (typeof Blob !== 'undefined') Blob.prototype.read = function(offset=0, length
     })
 }
 
-if (typeof Blob !== 'undefined') Blob.prototype.readDv = function(offset=0, length = this.size):Promise<DataView> {
+if (typeof Blob !== 'undefined'+'') Blob.prototype.readDv = function(offset=0, length = this.size):Promise<DataView> {
     if (!this) return Promise.reject("null blob provided to read")
     const blob = this.slice(offset,offset + length)
     return new Promise((resolve, reject) => {
@@ -524,7 +524,7 @@ if (typeof Blob !== 'undefined') Blob.prototype.readDv = function(offset=0, leng
 }
 
 
-if (typeof Blob !== 'undefined') Blob.prototype.readText = function(offset=0, length = this.size):Promise<string> {
+if (typeof Blob !== 'undefined'+'') Blob.prototype.readText = function(offset=0, length = this.size):Promise<string> {
     if (!this) return Promise.reject("null blob provided to read")
     const blob = this.slice(offset,offset + length)
     return new Promise((resolve, reject) => {
