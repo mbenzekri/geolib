@@ -449,39 +449,42 @@ const CLEANPREFIX = [
     // tslint:disable-next-line:max-line-length
     { name: 'Suppr exces blancs ', op: function (value) { return !value ? value : value.replace(/^ */, '').replace(/ *$/g, '').replace(/ +/g, ' '); } }
 ];
-Blob.prototype.read = function (offset = 0, length = this.size) {
-    if (!this)
-        return Promise.reject("null blob provided to read");
-    const blob = this.slice(offset, offset + length);
-    return new Promise((resolve, reject) => {
-        const r = new FileReader();
-        r.onerror = () => reject(r.error);
-        r.onload = () => resolve(r.result);
-        r.readAsArrayBuffer(blob);
-    });
-};
-Blob.prototype.readDv = function (offset = 0, length = this.size) {
-    if (!this)
-        return Promise.reject("null blob provided to read");
-    const blob = this.slice(offset, offset + length);
-    return new Promise((resolve, reject) => {
-        const r = new FileReader();
-        r.onerror = () => reject(r.error);
-        r.onload = () => resolve(new DataView(r.result));
-        r.readAsArrayBuffer(blob);
-    });
-};
-Blob.prototype.readText = function (offset = 0, length = this.size) {
-    if (!this)
-        return Promise.reject("null blob provided to read");
-    const blob = this.slice(offset, offset + length);
-    return new Promise((resolve, reject) => {
-        const r = new FileReader();
-        r.onerror = () => reject(r.error);
-        r.onload = () => resolve(r.result);
-        r.readAsText(blob);
-    });
-};
+if (Blob)
+    Blob.prototype.read = function (offset = 0, length = this.size) {
+        if (!this)
+            return Promise.reject("null blob provided to read");
+        const blob = this.slice(offset, offset + length);
+        return new Promise((resolve, reject) => {
+            const r = new FileReader();
+            r.onerror = () => reject(r.error);
+            r.onload = () => resolve(r.result);
+            r.readAsArrayBuffer(blob);
+        });
+    };
+if (Blob)
+    Blob.prototype.readDv = function (offset = 0, length = this.size) {
+        if (!this)
+            return Promise.reject("null blob provided to read");
+        const blob = this.slice(offset, offset + length);
+        return new Promise((resolve, reject) => {
+            const r = new FileReader();
+            r.onerror = () => reject(r.error);
+            r.onload = () => resolve(new DataView(r.result));
+            r.readAsArrayBuffer(blob);
+        });
+    };
+if (Blob)
+    Blob.prototype.readText = function (offset = 0, length = this.size) {
+        if (!this)
+            return Promise.reject("null blob provided to read");
+        const blob = this.slice(offset, offset + length);
+        return new Promise((resolve, reject) => {
+            const r = new FileReader();
+            r.onerror = () => reject(r.error);
+            r.onload = () => resolve(r.result);
+            r.readAsText(blob);
+        });
+    };
 DataView.prototype.setAscii = function (offset, str, length = str.length) {
     length = Math.min(str.length, length);
     for (let i = 0; i < length; i++)
