@@ -193,11 +193,11 @@ export class GeofileIndexRtree extends GeofileIndex {
         // scan rtree index.
         const bboxlist: number[][] = this.rtree.search(bbox).filter(ibbox => gt.intersects_ee(ibbox, bbox));
         const promises = bboxlist.map(ibbox => this.geofile.getFeatures(ibbox[4], ibbox[5], options));
-        return Promise.all(promises).then(array => 
-            array.reduce((res,arr) => { 
+        return Promise.all(promises).then(array => {
+            return array.reduce((res,arr) => { 
                 res.push(...arr); return res 
             },[])
-        )
+        })
     }
 
     point(lon: number, lat: number, options: GeofileFilter = {}): Promise<GeofileFeature[]> {
