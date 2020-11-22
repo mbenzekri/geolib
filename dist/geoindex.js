@@ -134,7 +134,7 @@ class GeofileIndexRtree extends GeofileIndex {
         if (this.cluster.length === clustersize && !this.bounds.some(val => val === null)) {
             this.clusters.push(this.bounds);
             this.cluster = [];
-            this.bounds = [null, null, null, null, feature.rank + 1, 0];
+            this.bounds = [null, null, null, null, feature.rank, 0];
         }
         this.cluster.push(feature);
         if (feature.bbox)
@@ -167,7 +167,10 @@ class GeofileIndexRtree extends GeofileIndex {
         // scan rtree index.
         const bboxlist = this.rtree.search(bbox).filter(ibbox => gt.intersects_ee(ibbox, bbox));
         const promises = bboxlist.map(ibbox => this.geofile.getFeatures(ibbox[4], ibbox[5], options));
-        return Promise.clean(promises);
+        return Promise.all(promises).then(array => array.reduce((res, arr) => {
+            res.push(...arr);
+            return res;
+        }, []));
     }
     point(lon, lat, options = {}) {
         const tol = options.pointSearchTolerance ? options.pointSearchTolerance : 0.00001;
