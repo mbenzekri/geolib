@@ -4,7 +4,6 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports._ = void 0;
-const string_decoder_1 = require("string_decoder");
 // mots de liaisons à supprimer (article, conjonctions, ...)
 const SUPPR = [
     'A',
@@ -506,7 +505,9 @@ Uint8Array.prototype.getUtf8 =
                     return td.decode(buffer).trimzero();
                 }
                 else {
-                    const sd = new string_decoder_1.StringDecoder();
+                    // eslint-disable-next-line @typescript-eslint/no-var-requires
+                    const StringDecoder = require("string_decoder").StringDecoder;
+                    const sd = new StringDecoder();
                     return sd.end(Buffer.from(buffer)).trimzero();
                 }
             };
@@ -517,7 +518,9 @@ DataView.prototype.getUtf8 = function (offset, length) {
         return td.decode(buffer).trimzero();
     }
     else {
-        const sd = new string_decoder_1.StringDecoder();
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const StringDecoder = require("string_decoder").StringDecoder;
+        const sd = new StringDecoder();
         const buffer = this.buffer.slice(this.byteOffset, this.byteOffset + this.byteLength).slice(offset, offset + length);
         return sd.end(Buffer.from(buffer)).trimzero();
     }

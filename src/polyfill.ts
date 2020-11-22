@@ -2,8 +2,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 
-import { StringDecoder } from "string_decoder";
-
 // mots de liaisons à supprimer (article, conjonctions, ...)
 const SUPPR = [
     'A',
@@ -555,6 +553,8 @@ function(offset:number,length:number): string {
         const td = new TextDecoder();
         return td.decode(buffer).trimzero();
     } else {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const StringDecoder = require("string_decoder").StringDecoder;
         const sd = new StringDecoder();
         return sd.end(Buffer.from(buffer)).trimzero();
     }
@@ -568,6 +568,8 @@ DataView.prototype.getUtf8 = function(offset:number,length:number): string {
         const buffer = this.buffer.slice(this.byteOffset, this.byteOffset + this.byteLength).slice(offset, offset + length)
         return td.decode(buffer).trimzero();
     } else {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const StringDecoder = require("string_decoder").StringDecoder;
         const sd = new StringDecoder();
         const buffer = this.buffer.slice(this.byteOffset, this.byteOffset + this.byteLength).slice(offset, offset + length)
         return sd.end(Buffer.from(buffer)).trimzero();
