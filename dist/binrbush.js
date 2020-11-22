@@ -59,29 +59,17 @@ class binrbush extends rbush_1.rbush {
         return pos += binrbush.NODE_SIZE;
     }
     dump(dv) {
+        console.log(`node\ttype\theight\txmin\tymin\txmax\tymax\trank_node\tcount_next`);
         for (let pos = 0; pos < dv.byteLength; pos += binrbush.NODE_SIZE) {
             const height = dv.getUint8(pos);
             const xmin = dv.getFloat32(pos + 1, true); // xmin BBOX
             const ymin = dv.getFloat32(pos + 5, true); // ymin BBOX
             const xmax = dv.getFloat32(pos + 9, true); // xmax BBOX
             const ymax = dv.getFloat32(pos + 13, true); // ymax BBOX
-            const leaf = (height === 1);
-            const cluster = (height === 0);
-            const node = (height > 1);
-            const child = dv.getUint32(pos + 17, true); // rank number of the feature
-            const next = dv.getUint32(pos + 21, true); // feature count
+            const type = (height === 1) ? 'leaf' : (height === 0) ? 'cluster' : 'node';
             const rank = dv.getUint32(pos + 17, true); // rank number of the feature
             const count = dv.getUint32(pos + 21, true); // feature count
-            switch (height) {
-                case 0:
-                    console.log('%s clst : H=%s BBOX[%s,%s,%s,%s] rank=%s count=%s ', pos, height, xmin, ymin, xmax, ymax, rank, count);
-                    break;
-                case 1:
-                    console.log('%s leaf : H=%s BBOX[%s,%s,%s,%s] first=%s next=%s ', pos, height, xmin, ymin, xmax, ymax, child, next);
-                    break;
-                default:
-                    console.log('%s node : H=%s BBOX[%s,%s,%s,%s] child=%s next=%s ', pos, height, xmin, ymin, xmax, ymax, child, next);
-            }
+            console.log(`${pos}\t${type}\t${height}\t${xmin}\t${ymin}\t${xmax}\t${ymax}\t${rank}\t${count}`);
         }
     }
 }
