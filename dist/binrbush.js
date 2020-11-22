@@ -58,20 +58,6 @@ class binrbush extends rbush_1.rbush {
         dv.setUint32(pos + 21, leaf[5], true); // feature count
         return pos += binrbush.NODE_SIZE;
     }
-    dump(dv) {
-        console.log(`file\tnode\ttype\theight\txmin\tymin\txmax\tymax\trank_node\tcount_next`);
-        for (let pos = 0; pos < dv.byteLength; pos += binrbush.NODE_SIZE) {
-            const height = dv.getUint8(pos);
-            const xmin = dv.getFloat32(pos + 1, true); // xmin BBOX
-            const ymin = dv.getFloat32(pos + 5, true); // ymin BBOX
-            const xmax = dv.getFloat32(pos + 9, true); // xmax BBOX
-            const ymax = dv.getFloat32(pos + 13, true); // ymax BBOX
-            const type = (height === 1) ? 'leaf' : (height === 0) ? 'cluster' : 'node';
-            const rank = dv.getUint32(pos + 17, true); // rank number of the feature
-            const count = dv.getUint32(pos + 21, true); // feature count
-            console.log(`\t${pos}\t${type}\t${height}\t${xmin}\t${ymin}\t${xmax}\t${ymax}\t${rank}\t${count}`);
-        }
-    }
 }
 exports.binrbush = binrbush;
 binrbush.RTREE_CHILD_MAX = 20;

@@ -137,4 +137,18 @@ export class BinRtree {
         return result;
     }
 
+    dump() {
+        console.log(`file\tnode\ttype\theight\txmin\tymin\txmax\tymax\trank_node\tcount_next`);
+        for (let pos = 0; pos < this.dv.byteLength; pos += 25) {
+            const height = this.dv.getUint8(pos);
+            const xmin = this.dv.getFloat32(pos + 1,true);    // xmin BBOX
+            const ymin = this.dv.getFloat32(pos + 5,true);    // ymin BBOX
+            const xmax = this.dv.getFloat32(pos + 9,true);    // xmax BBOX
+            const ymax = this.dv.getFloat32(pos + 13,true);   // ymax BBOX
+            const type = (height === 1) ? 'leaf' : (height === 0) ? 'cluster' : 'node'
+            const rank = this.dv.getUint32(pos + 17,true);  // rank number of the feature
+            const count = this.dv.getUint32(pos + 21,true);  // feature count
+            console.log(`\t${pos}\t${type}\t${height}\t${xmin}\t${ymin}\t${xmax}\t${ymax}\t${rank}\t${count}`);
+        }
+    }
 }

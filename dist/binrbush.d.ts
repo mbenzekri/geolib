@@ -8,5 +8,4 @@ export declare class binrbush extends rbush {
     write(dv: DataView, node: any, pos: number): number;
     writeNode(dv: DataView, node: any, pos: number): number;
     writeCluster(dv: DataView, leaf: number[], pos: number): number;
-    dump(dv: DataView): void;
 }

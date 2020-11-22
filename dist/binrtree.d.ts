@@ -14,4 +14,5 @@ export declare class BinRtree {
     intersects(a: any, node: any): boolean;
     _all(node: any, result: any): any;
     search(bbox: any): any;
+    dump(): void;
 }
