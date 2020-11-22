@@ -205,7 +205,7 @@ export abstract class Geofile {
         }
     }
 
-    async buildIndexes(idxlist: GeofileIndexDef[]): Promise<void> {
+    async buildIndexes(idxlist: GeofileIndexDef[],onprogress?: (state: {read: number ,size: number,count: number}) => void): Promise<void> {
 
         // build all mandatory indexes and defined indexes
         idxlist = [{ attribute: 'rank', type: GeofileIndexType.handle }, { attribute: 'geometry', type: GeofileIndexType.rtree }, ...idxlist]
@@ -218,7 +218,7 @@ export abstract class Geofile {
         })
         // parse all the features
         for (const index of this.indexes.values()) index.begin()
-        for await (const feature of this.parse()) {
+        for await (const feature of this.parse(onprogress)) {
             this.indexes.forEach(index => index.index(feature))
         }
         for (const index of this.indexes.values()) index.end()
@@ -275,7 +275,7 @@ export abstract class Geofile {
         return feature;
     }
 
-    parse(): AsyncGenerator<GeofileFeature> {
+    parse(onprogress:(state: {read: number, size: number, count: number}) => void): AsyncGenerator<GeofileFeature> {
         const bunch = 1024 * 64
         // eslint-disable-next-line @typescript-eslint/no-this-alias
         const geofile:Geofile = this
@@ -284,14 +284,16 @@ export abstract class Geofile {
             let err = null
             await geofile.open()
             const parser = geofile.parser
+            if (onprogress) onprogress(parser.progress)
             const file = await parser.begin()
             while (offset < file.size && !err) {
                 while (parser.collected.length > 0) yield parser.collected.shift()
+                if (onprogress) onprogress(parser.progress)
                 const buffer = await file.read(offset, bunch)
                 const array = new Uint8Array(buffer)
                 for (let i = 0; i < array.byteLength && !err; i++) {
                     const byte = array[i]
-                    err = parser.consume(byte)
+                    err = parser.consume(byte,file.size)
                     if (err) 
                         throw Error(`Geofile.parse(): ${err.msg} at ${err.line}:${err.col} offset=${parser.pos}`)
                 }
@@ -299,6 +301,7 @@ export abstract class Geofile {
             }
             await parser.end()
             while (parser.collected.length > 0) yield parser.collected.shift()
+            if (onprogress) onprogress(parser.progress)
             return;
         }
         return iter()

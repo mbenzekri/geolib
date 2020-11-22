@@ -10,6 +10,7 @@ export abstract class GeofileParser {
     private _line = 1
     private _col = 0
     private rank = 0
+    private size = 0
     private pending = 0
     public collected = []
 
@@ -18,14 +19,17 @@ export abstract class GeofileParser {
     abstract process(byte: number)
     abstract end(): Promise<void>
 
+    get progress() { return {read: this._pos, size: this.size, count: this.rank} }
     get pos() {return this._pos}
     get line() {return this._line}
     get col() {return this._col}
+
     constructor(isbinary = false) {
         this.isbinary = isbinary
     }
 
-    consume(byte: number) {
+    consume(byte: number, size: number) {
+        this.size = size
         if (!this.isbinary) {
             // count lines and cols
             if (byte === 0x0A) { this._line++; this._col = 0 }

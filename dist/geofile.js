@@ -201,7 +201,7 @@ class Geofile {
             }
         });
     }
-    buildIndexes(idxlist) {
+    buildIndexes(idxlist, onprogress) {
         var e_1, _a;
         return __awaiter(this, void 0, void 0, function* () {
             // build all mandatory indexes and defined indexes
@@ -219,7 +219,7 @@ class Geofile {
             for (const index of this.indexes.values())
                 index.begin();
             try {
-                for (var _b = __asyncValues(this.parse()), _c; _c = yield _b.next(), !_c.done;) {
+                for (var _b = __asyncValues(this.parse(onprogress)), _c; _c = yield _b.next(), !_c.done;) {
                     const feature = _c.value;
                     this.indexes.forEach(index => index.index(feature));
                 }
@@ -287,7 +287,7 @@ class Geofile {
         }
         return feature;
     }
-    parse() {
+    parse(onprogress) {
         const bunch = 1024 * 64;
         // eslint-disable-next-line @typescript-eslint/no-this-alias
         const geofile = this;
@@ -297,15 +297,19 @@ class Geofile {
                 let err = null;
                 yield __await(geofile.open());
                 const parser = geofile.parser;
+                if (onprogress)
+                    onprogress(parser.progress);
                 const file = yield __await(parser.begin());
                 while (offset < file.size && !err) {
                     while (parser.collected.length > 0)
                         yield yield __await(parser.collected.shift());
+                    if (onprogress)
+                        onprogress(parser.progress);
                     const buffer = yield __await(file.read(offset, bunch));
                     const array = new Uint8Array(buffer);
                     for (let i = 0; i < array.byteLength && !err; i++) {
                         const byte = array[i];
-                        err = parser.consume(byte);
+                        err = parser.consume(byte, file.size);
                         if (err)
                             throw Error(`Geofile.parse(): ${err.msg} at ${err.line}:${err.col} offset=${parser.pos}`);
                     }
@@ -314,6 +318,8 @@ class Geofile {
                 yield __await(parser.end());
                 while (parser.collected.length > 0)
                     yield yield __await(parser.collected.shift());
+                if (onprogress)
+                    onprogress(parser.progress);
                 return yield __await(void 0);
             });
         };

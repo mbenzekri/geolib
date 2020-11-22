@@ -77,10 +77,18 @@ export declare abstract class Geofile {
     getFeature(rank: number, options?: GeofileFilter): Promise<GeofileFeature>;
     getFeatures(rank: number, limit?: number, options?: GeofileFilter): Promise<GeofileFeature[]>;
     private loadIndexes;
-    buildIndexes(idxlist: GeofileIndexDef[]): Promise<void>;
+    buildIndexes(idxlist: GeofileIndexDef[], onprogress?: (state: {
+        read: number;
+        size: number;
+        count: number;
+    }) => void): Promise<void>;
     getIndexBuffer(): Blob;
     protected apply(feature: GeofileFeature, options: GeofileFilter): GeofileFeature;
-    parse(): AsyncGenerator<GeofileFeature>;
+    parse(onprogress: (state: {
+        read: number;
+        size: number;
+        count: number;
+    }) => void): AsyncGenerator<GeofileFeature>;
     forEach(options?: GeofileFilter, rank?: number): Promise<void>;
     bbox(bbox: number[], options?: GeofileFilter): Promise<GeofileFeature[]>;
     point(lon: number, lat: number, options?: GeofileFilter): Promise<GeofileFeature[]>;

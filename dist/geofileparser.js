@@ -28,14 +28,17 @@ class GeofileParser {
         this._line = 1;
         this._col = 0;
         this.rank = 0;
+        this.size = 0;
         this.pending = 0;
         this.collected = [];
         this.isbinary = isbinary;
     }
+    get progress() { return { read: this._pos, size: this.size, count: this.rank }; }
     get pos() { return this._pos; }
     get line() { return this._line; }
     get col() { return this._col; }
-    consume(byte) {
+    consume(byte, size) {
+        this.size = size;
         if (!this.isbinary) {
             // count lines and cols
             if (byte === 0x0A) {

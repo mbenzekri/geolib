@@ -5,16 +5,22 @@ export declare abstract class GeofileParser {
     private _line;
     private _col;
     private rank;
+    private size;
     private pending;
     collected: any[];
     abstract begin(): Promise<Blob>;
     abstract process(byte: number): any;
     abstract end(): Promise<void>;
+    get progress(): {
+        read: number;
+        size: number;
+        count: number;
+    };
     get pos(): number;
     get line(): number;
     get col(): number;
     constructor(isbinary?: boolean);
-    consume(byte: number): false | {
+    consume(byte: number, size: number): false | {
         msg: string;
         line: number;
         col: number;
