@@ -59,7 +59,7 @@ class binrbush extends rbush_1.rbush {
         return pos += binrbush.NODE_SIZE;
     }
     dump(dv) {
-        console.log(`node\ttype\theight\txmin\tymin\txmax\tymax\trank_node\tcount_next`);
+        console.log(`file\tnode\ttype\theight\txmin\tymin\txmax\tymax\trank_node\tcount_next`);
         for (let pos = 0; pos < dv.byteLength; pos += binrbush.NODE_SIZE) {
             const height = dv.getUint8(pos);
             const xmin = dv.getFloat32(pos + 1, true); // xmin BBOX
@@ -69,7 +69,7 @@ class binrbush extends rbush_1.rbush {
             const type = (height === 1) ? 'leaf' : (height === 0) ? 'cluster' : 'node';
             const rank = dv.getUint32(pos + 17, true); // rank number of the feature
             const count = dv.getUint32(pos + 21, true); // feature count
-            console.log(`${pos}\t${type}\t${height}\t${xmin}\t${ymin}\t${xmax}\t${ymax}\t${rank}\t${count}`);
+            console.log(`\t${pos}\t${type}\t${height}\t${xmin}\t${ymin}\t${xmax}\t${ymax}\t${rank}\t${count}`);
         }
     }
 }
