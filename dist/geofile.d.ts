@@ -17,6 +17,7 @@ export declare enum GeofileFiletype {
     KML = 7
 }
 export interface GeofileFeature {
+    type?: string;
     geometry?: gt.Geometry;
     properties?: {
         [key: string]: unknown;

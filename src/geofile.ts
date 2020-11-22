@@ -25,6 +25,7 @@ export enum GeofileFiletype {
 }
 
 export interface GeofileFeature {
+    type?: string;
     geometry?: gt.Geometry;
     properties?: { [key: string]: unknown };
     proj?: string;
@@ -147,8 +148,9 @@ export abstract class Geofile {
     }
     private initFeature(feature: GeofileFeature, rank): GeofileFeature {
         feature.rank = rank;
-        feature.geofile = this;
-        feature.proj = this.proj;
+        feature.type = 'Feature'
+        feature.geofile = this
+        feature.proj = this.proj
         feature.bbox = (feature.geometry) ? gt.bbox_g(feature.geometry) : null
         return feature
     }

@@ -142,6 +142,7 @@ class Geofile {
     }
     initFeature(feature, rank) {
         feature.rank = rank;
+        feature.type = 'Feature';
         feature.geofile = this;
         feature.proj = this.proj;
         feature.bbox = (feature.geometry) ? gt.bbox_g(feature.geometry) : null;
