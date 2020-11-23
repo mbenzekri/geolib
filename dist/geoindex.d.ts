@@ -8,6 +8,8 @@ declare class Uint32ArraySeq {
     constructor(bytes?: number);
     private expand;
     add(...uint32: number[]): void;
+    set(i: number, uint32: number): void;
+    get(i: number): number;
 }
 export declare enum GeofileIndexType {
     handle = "handle",
@@ -49,16 +51,20 @@ export declare class GeofileIndexHandle extends GeofileIndex {
     index(feature: GeofileFeature): void;
     end(): void;
     getRecord(rank: number): GeofileHandle;
+    setMinibox(feature: GeofileFeature, bounds: number[]): void;
+    getMinibox(rank: number, bounds: number[]): number[];
 }
 export declare class GeofileIndexRtree extends GeofileIndex {
     static RECSIZE: number;
     get count(): number;
+    get extent(): number[];
+    private rtree;
     private clusters;
     private cluster;
     private bounds;
-    private rtree;
-    get extent(): number[];
+    private idxhandle;
     constructor(geofile: Geofile, dv?: DataView);
+    setIndexHandle(idxhandle: GeofileIndexHandle): void;
     begin(): void;
     index(feature: GeofileFeature): void;
     end(): void;

@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "description": "Library to handle Spatial Data file in Openlayers 3+ (shapefile, geojson, csv, ...)",
   "main": "dist/index.js",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "test": "jest"

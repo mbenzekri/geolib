@@ -196,6 +196,8 @@ class Geofile {
                 if (index.type === geoindex_1.GeofileIndexType.rtree)
                     this.geoidx = index;
             }
+            // set handle index to calculate miniboxes
+            this.geoidx.setIndexHandle(this.handles);
             if (!this.handles || count !== this.handles.count) {
                 throw new Error(`Geofile.parseIndexes(): missing mandatory handle index in index file`);
             }
@@ -215,6 +217,8 @@ class Geofile {
                     this.geoidx = index;
                 this.indexes.set(index.name, index);
             });
+            // set handle index to calculate miniboxes
+            this.geoidx.setIndexHandle(this.handles);
             // parse all the features
             for (const index of this.indexes.values())
                 index.begin();
@@ -231,7 +235,7 @@ class Geofile {
                 }
                 finally { if (e_1) throw e_1.error; }
             }
-            for (const index of this.indexes.values())
+            for (const index of [...this.indexes.values()].reverse())
                 index.end();
             this._loaded = true;
             this.assertTerminated();

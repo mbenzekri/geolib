@@ -1,6 +1,7 @@
 export declare class BinRtree {
     dv: DataView;
     constructor(dataview: DataView);
+    get count(): number;
     extent(): number[];
     isnode(node: number): boolean;
     isleaf(node: number): boolean;
@@ -9,7 +10,7 @@ export declare class BinRtree {
     child(node: number): number;
     cluster(node: number): number[];
     next(node: number): number;
-    clusters(node: any, result: any): any;
+    clusters(node: any, bbox: any, result: any): any;
     contains(a: any, node: any): boolean;
     intersects(a: any, node: any): boolean;
     _all(node: any, result: any): any;

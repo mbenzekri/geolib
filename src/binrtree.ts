@@ -48,6 +48,7 @@
 export class BinRtree {
     dv: DataView;
     constructor(dataview: DataView) { this.dv = dataview; }
+    get count() { return this.dv.byteLength / 25 }
     extent() {
         return [this.dv.getFloat32(1,true), this.dv.getFloat32(5,true),
         this.dv.getFloat32(9,true), this.dv.getFloat32(13,true)];
@@ -61,7 +62,8 @@ export class BinRtree {
         return [
             this.dv.getFloat32(node + 1,true), this.dv.getFloat32(node + 5,true),
             this.dv.getFloat32(node + 9,true), this.dv.getFloat32(node + 13,true),
-            this.dv.getUint32(node + 17,true), this.dv.getUint32(node + 21,true)
+            this.dv.getUint32(node + 17,true), this.dv.getUint32(node + 21,true),
+            node
         ];
     }
     next(node: number) {
@@ -69,18 +71,18 @@ export class BinRtree {
             const next = node + 25;
             return (next < this.dv.byteLength && this.iscluster(next)) ? next : null;
         } else {
-            const next = this.dv.getUint32(node + 21);
+            const next = this.dv.getUint32(node + 21,true);
             return (next < this.dv.byteLength && next > 0) ? next : null;
         }
     }
 
-    clusters(node, result) {
+    clusters(node, bbox, result) {
         let acluster;
         if (!this.isleaf(node)) { return result; }
         for (acluster = this.child(node);
             acluster < this.dv.byteLength && this.iscluster(acluster);
             acluster = this.next(acluster)
-        ) { result.push(this.cluster(acluster)); }
+        ) { if (!bbox || this.intersects(bbox, acluster)) result.push(this.cluster(acluster)); }
         return result;
     }
 
@@ -102,7 +104,7 @@ export class BinRtree {
         let achild;
         const nodesToSearch = [];
         while (node !== undefined) {
-            if (this.isleaf(node)) { this.clusters(node, result); } else {
+            if (this.isleaf(node)) { this.clusters(node, null, result); } else {
                 for (achild = this.child(node);
                     achild !== null;
                     achild = this.next(achild)
@@ -117,13 +119,13 @@ export class BinRtree {
         let node = 0, achild;
         const result = [], nodesToSearch = [];
         if (!this.intersects(bbox, node)) { return result; }
-        if (this.isleaf(node)) { return this.clusters(node, result); }
+        if (this.isleaf(node)) { return this.clusters(node,bbox, result); }
         while (node !== undefined) {
             achild = this.child(node);
             while (achild !== null) {
                 if (this.intersects(bbox, achild)) {
                     if (this.isleaf(achild)) {
-                        this.clusters(achild, result);
+                        this.clusters(achild,bbox, result);
                     } else if (this.contains(bbox, achild)) {
                         this._all(achild, result);
                     } else {

@@ -60,6 +60,6 @@ class binrbush extends rbush_1.rbush {
     }
 }
 exports.binrbush = binrbush;
-binrbush.RTREE_CHILD_MAX = 20;
+binrbush.RTREE_CHILD_MAX = 9;
 binrbush.NODE_SIZE = 25;
 //# sourceMappingURL=binrbush.js.map

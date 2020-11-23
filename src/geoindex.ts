@@ -17,7 +17,6 @@ class Uint32ArraySeq {
 
     get array() { return this.int32arr.slice(0, this.setted) }
     get length() { return this.setted }
-
     constructor(bytes?: number) {
         this.int32arr = new Uint32Array(bytes || EXPARRAY_INIT)
         this.lastbunch = EXPARRAY_INIT
@@ -33,6 +32,12 @@ class Uint32ArraySeq {
         while (this.setted + uint32.length > this.int32arr.length) this.expand()
         this.int32arr.set(uint32, this.setted)
         this.setted += uint32.length
+    }
+    set(i: number, uint32: number) {
+        this.int32arr[i]= uint32
+    }
+    get(i: number): number {
+        return this.int32arr[i]
     }
 }
 export enum GeofileIndexType {
@@ -56,7 +61,7 @@ export abstract class GeofileIndex {
     protected geofile: Geofile;
     get size() { return this.dv ? this.dv.byteLength : 0 }
     get name() { return `${this.attribute}/${this.type}` }
-    get array() { return this.dv ? this.dv.buffer : null}
+    get array() { return this.dv ? this.dv.buffer : null }
     abstract getRecord(rank): { rank: number, [key: string]: any }
     abstract get count(): number
     abstract begin(): void
@@ -92,7 +97,8 @@ export class GeofileIndexHandle extends GeofileIndex {
     // index handle record is : { pos:uint32, len:uint32 }
     // pos: is offset in datafile to retrieve feature data
     // len: is length in bytes of the feature data
-    static RECSIZE = 8 // 2 x uint32
+    // minibox: cluster relative bbox
+    static RECSIZE = 12 // 2 x uint32
     // only used durind build index phase (begin/index/end )
     seq: Uint32ArraySeq
 
@@ -106,7 +112,7 @@ export class GeofileIndexHandle extends GeofileIndex {
         this.seq = new Uint32ArraySeq()
     }
     index(feature: GeofileFeature) {
-        this.seq.add(feature.pos, feature.len)
+        this.seq.add(feature.pos, feature.len, 0xFFFF)
     }
     end() {
         this.dv = new DataView(this.seq.array.buffer)
@@ -117,7 +123,30 @@ export class GeofileIndexHandle extends GeofileIndex {
         const offset = rank * GeofileIndexHandle.RECSIZE
         const pos = this.dv.getUint32(offset, true)
         const len = this.dv.getUint32(offset + 4, true)
-        return { rank, pos, len }
+        const mbox = this.dv.getUint32(offset + 8, true)
+        return { rank, pos, len, mbox }
+    }
+    setMinibox(feature: GeofileFeature, bounds: number[]) {
+        const wtile = Math.abs(bounds[2] - bounds[0]) / 255;
+        const htile = Math.abs(bounds[3] - bounds[1]) / 255;
+        const bbox = feature.bbox
+        const xmin = Math.floor(Math.abs(bbox[0] - bounds[0]) / wtile)
+        const ymin = Math.floor(Math.abs(bbox[1] - bounds[1]) / htile)
+        const xmax = Math.floor(Math.abs(bbox[2] - bounds[0]) / wtile)
+        const ymax = Math.floor(Math.abs(bbox[3] - bounds[1]) / htile)
+        const mbox = (xmin << 24) + (ymin << 16) + (xmax << 8) + ymax
+        this.seq.set(feature.rank * 3 + 2, mbox)
+    }
+
+    getMinibox(rank: number, bounds: number[]) {
+        const mbox = this.dv.getUint32(rank * GeofileIndexHandle.RECSIZE + 8, true)
+        const wtile = Math.abs(bounds[2] - bounds[0]) / 255;
+        const htile = Math.abs(bounds[3] - bounds[1]) / 255;
+        const xmin = bounds[0] + wtile * ((mbox >> 24) & 0XFF)
+        const ymin = bounds[1] + htile * ((mbox >> 16) & 0XFF)
+        const xmax = bounds[0] + wtile * ((mbox >> 8) & 0XFF)
+        const ymax = bounds[1] + htile * (mbox & 0XFF)
+        return [xmin, ymin, xmax, ymax];
     }
 
 }
@@ -133,17 +162,22 @@ export class GeofileIndexRtree extends GeofileIndex {
     // next : is the offset of next brother node  
     static RECSIZE = 25 // uint8 + 4 x float32 + 2 x uint32
     get count() { return this.dv ? this.dv.byteLength / GeofileIndexRtree.RECSIZE : 0 }
+    get extent(): number[] { return this.rtree.extent(); }
+    private rtree: BinRtree
     // only used durind build index phase (begin/index/end )
     private clusters: number[][]
     private cluster = []
     private bounds: number[]
+    private idxhandle: GeofileIndexHandle
 
-    private rtree: BinRtree
-    get extent(): number[] { return this.rtree.extent(); }
+
 
     constructor(geofile: Geofile, dv?: DataView,) {
         super(GeofileIndexType.rtree, 'geometry', geofile, dv)
         this.rtree = new BinRtree(dv);
+    }
+    setIndexHandle(idxhandle: GeofileIndexHandle) {
+        this.idxhandle = idxhandle
     }
 
     begin() {
@@ -156,6 +190,7 @@ export class GeofileIndexRtree extends GeofileIndex {
         const clustersize = 200
         if (this.cluster.length === clustersize && !this.bounds.some(val => val === null)) {
             this.clusters.push(this.bounds);
+            this.cluster.forEach(feature => this.idxhandle.setMinibox(feature, this.bounds))
             this.cluster = []
             this.bounds = [null, null, null, null, feature.rank, 0];
         }
@@ -164,7 +199,10 @@ export class GeofileIndexRtree extends GeofileIndex {
     }
 
     end() {
-        if (this.cluster.length > 0 && !this.bounds.some(val => val === null)) this.clusters.push(this.bounds)
+        if (this.cluster.length > 0 && !this.bounds.some(val => val === null)) {
+            this.clusters.push(this.bounds)
+            this.cluster.forEach(feature => this.idxhandle.setMinibox(feature, this.bounds))
+        }
         const tree = new binrbush();
         (<any>tree).load(this.clusters);
         const array = tree.toBinary()
@@ -192,12 +230,23 @@ export class GeofileIndexRtree extends GeofileIndex {
 
         // scan rtree index.
         const bboxlist: number[][] = this.rtree.search(bbox).filter(ibbox => gt.intersects_ee(ibbox, bbox));
-        const promises = bboxlist.map(ibbox => this.geofile.getFeatures(ibbox[4], ibbox[5], options));
-        return Promise.all(promises).then(array => {
-            return array.reduce((res,arr) => { 
-                res.push(...arr); return res 
-            },[])
-        })
+        // apply minibox filtering
+        const ranks = bboxlist.reduce((list,bounds) => {
+            const rank = bounds[4]
+            for(let i=0; i<bounds[5]; i++) { 
+                const minibox = this.idxhandle.getMinibox(rank+i, bounds)
+                if (gt.intersects_ee(minibox, bbox)) list.push(rank + i)
+            }
+            return list
+        },[])
+        // prepare promises
+        const promises = ranks.map(rank => this.geofile.getFeature(rank, options));
+        return Promise.clean(promises)
+        //.then(array => {
+        //    return array.reduce((res, arr) => {
+        //        res.push(...arr); return res
+        //    }, [])
+        //})
     }
 
     point(lon: number, lat: number, options: GeofileFilter = {}): Promise<GeofileFeature[]> {
@@ -304,14 +353,14 @@ export class GeofileIndexOrdered extends GeofileIndexAttribute {
     }
 
     begin() {
-        this.attlist=[]
+        this.attlist = []
     }
     index(feature: GeofileFeature) {
         const value = feature.properties[this.attribute];
         this.attlist.push({ value, rank: feature.rank });
     }
     end() {
-        this.attlist.sort((a,b) => this.compare(a.value,b.value,a.rank,b.rank));
+        this.attlist.sort((a, b) => this.compare(a.value, b.value, a.rank, b.rank));
         const array = Uint32Array.from(this.attlist.map(o => o.rank))
         this.dv = new DataView(array.buffer)
         this.attlist = null
@@ -329,17 +378,17 @@ export class GeofileIndexOrdered extends GeofileIndexAttribute {
             const value = feature.properties[this.attribute]
             return feature && searched.some(v => v === value);
         };
-        const compare = (key, feature) => this.compare(key,feature.properties[this.attribute])
+        const compare = (key, feature) => this.compare(key, feature.properties[this.attribute])
         options = setFilter(options, filter)
         return this.binarySearch(searched, compare, options);
     }
 
-    private compare (a: any, b: any , ra = 0, rb = 0) {
+    private compare(a: any, b: any, ra = 0, rb = 0) {
         a = (a === undefined) ? null : a;
         b = (b === undefined) ? null : b;
         const rdiff = (ra - rb)
         if (a === null) return (b === null) ? rdiff : -1
-        if (b === null) return  1
+        if (b === null) return 1
         if (a < b) return -1
         if (a > b) return 1
         return rdiff
@@ -365,9 +414,9 @@ export class GeofileIndexFuzzy extends GeofileIndexAttribute {
         this.attlist = []
     }
     index(feature: GeofileFeature) {
-            const value = feature.properties[this.attribute].toString();
-            const hash = value ? value.fuzzyhash() : 0;
-            this.attlist.push({ hash, rank: feature.rank });
+        const value = feature.properties[this.attribute].toString();
+        const hash = value ? value.fuzzyhash() : 0;
+        this.attlist.push({ hash, rank: feature.rank });
     }
     end() {
         this.attlist.sort(function (a, b) { return (a.hash < b.hash) ? -1 : (a.hash > b.hash) ? 1 : 0; });
@@ -424,7 +473,7 @@ export class GeofileIndexPrefix extends GeofileIndexAttribute {
         super(GeofileIndexType.prefix, attribute, geofile, dv)
     }
     begin() {
-        this.preflist = [];   
+        this.preflist = [];
     }
 
     index(feature: GeofileFeature) {
@@ -435,13 +484,13 @@ export class GeofileIndexPrefix extends GeofileIndexAttribute {
 
     end() {
         this.preflist.sort(function (a, b) { return (a.value < b.value) ? -1 : (a.value > b.value) ? 1 : (a.rank - b.rank); });
-        this.dv = new DataView(new ArrayBuffer(this.preflist.length* GeofileIndexPrefix.RECSIZE));
+        this.dv = new DataView(new ArrayBuffer(this.preflist.length * GeofileIndexPrefix.RECSIZE));
         this.preflist.reduce((offset, att) => {
             this.dv.setAscii(offset, '    ')
             this.dv.setAscii(offset, att.value, 4)
             this.dv.setUint32(offset + 4, att.rank, true);
             return offset + GeofileIndexPrefix.RECSIZE
-        },0);
+        }, 0);
         this.preflist = null
     }
 

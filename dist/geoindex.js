@@ -53,6 +53,12 @@ class Uint32ArraySeq {
         this.int32arr.set(uint32, this.setted);
         this.setted += uint32.length;
     }
+    set(i, uint32) {
+        this.int32arr[i] = uint32;
+    }
+    get(i) {
+        return this.int32arr[i];
+    }
 }
 var GeofileIndexType;
 (function (GeofileIndexType) {
@@ -98,7 +104,7 @@ class GeofileIndexHandle extends GeofileIndex {
         this.seq = new Uint32ArraySeq();
     }
     index(feature) {
-        this.seq.add(feature.pos, feature.len);
+        this.seq.add(feature.pos, feature.len, 0xFFFF);
     }
     end() {
         this.dv = new DataView(this.seq.array.buffer);
@@ -108,14 +114,37 @@ class GeofileIndexHandle extends GeofileIndex {
         const offset = rank * GeofileIndexHandle.RECSIZE;
         const pos = this.dv.getUint32(offset, true);
         const len = this.dv.getUint32(offset + 4, true);
-        return { rank, pos, len };
+        const mbox = this.dv.getUint32(offset + 8, true);
+        return { rank, pos, len, mbox };
+    }
+    setMinibox(feature, bounds) {
+        const wtile = Math.abs(bounds[2] - bounds[0]) / 255;
+        const htile = Math.abs(bounds[3] - bounds[1]) / 255;
+        const bbox = feature.bbox;
+        const xmin = Math.floor(Math.abs(bbox[0] - bounds[0]) / wtile);
+        const ymin = Math.floor(Math.abs(bbox[1] - bounds[1]) / htile);
+        const xmax = Math.floor(Math.abs(bbox[2] - bounds[0]) / wtile);
+        const ymax = Math.floor(Math.abs(bbox[3] - bounds[1]) / htile);
+        const mbox = (xmin << 24) + (ymin << 16) + (xmax << 8) + ymax;
+        this.seq.set(feature.rank * 3 + 2, mbox);
+    }
+    getMinibox(rank, bounds) {
+        const mbox = this.dv.getUint32(rank * GeofileIndexHandle.RECSIZE + 8, true);
+        const wtile = Math.abs(bounds[2] - bounds[0]) / 255;
+        const htile = Math.abs(bounds[3] - bounds[1]) / 255;
+        const xmin = bounds[0] + wtile * ((mbox >> 24) & 0XFF);
+        const ymin = bounds[1] + htile * ((mbox >> 16) & 0XFF);
+        const xmax = bounds[0] + wtile * ((mbox >> 8) & 0XFF);
+        const ymax = bounds[1] + htile * (mbox & 0XFF);
+        return [xmin, ymin, xmax, ymax];
     }
 }
 exports.GeofileIndexHandle = GeofileIndexHandle;
 // index handle record is : { pos:uint32, len:uint32 }
 // pos: is offset in datafile to retrieve feature data
 // len: is length in bytes of the feature data
-GeofileIndexHandle.RECSIZE = 8; // 2 x uint32
+// minibox: cluster relative bbox
+GeofileIndexHandle.RECSIZE = 12; // 2 x uint32
 class GeofileIndexRtree extends GeofileIndex {
     constructor(geofile, dv) {
         super(GeofileIndexType.rtree, 'geometry', geofile, dv);
@@ -124,6 +153,9 @@ class GeofileIndexRtree extends GeofileIndex {
     }
     get count() { return this.dv ? this.dv.byteLength / GeofileIndexRtree.RECSIZE : 0; }
     get extent() { return this.rtree.extent(); }
+    setIndexHandle(idxhandle) {
+        this.idxhandle = idxhandle;
+    }
     begin() {
         this.clusters = [];
         this.cluster = [];
@@ -133,6 +165,7 @@ class GeofileIndexRtree extends GeofileIndex {
         const clustersize = 200;
         if (this.cluster.length === clustersize && !this.bounds.some(val => val === null)) {
             this.clusters.push(this.bounds);
+            this.cluster.forEach(feature => this.idxhandle.setMinibox(feature, this.bounds));
             this.cluster = [];
             this.bounds = [null, null, null, null, feature.rank, 0];
         }
@@ -141,8 +174,10 @@ class GeofileIndexRtree extends GeofileIndex {
             this.bboxextend(this.bounds, feature.bbox);
     }
     end() {
-        if (this.cluster.length > 0 && !this.bounds.some(val => val === null))
+        if (this.cluster.length > 0 && !this.bounds.some(val => val === null)) {
             this.clusters.push(this.bounds);
+            this.cluster.forEach(feature => this.idxhandle.setMinibox(feature, this.bounds));
+        }
         const tree = new binrbush_1.binrbush();
         tree.load(this.clusters);
         const array = tree.toBinary();
@@ -166,13 +201,24 @@ class GeofileIndexRtree extends GeofileIndex {
         });
         // scan rtree index.
         const bboxlist = this.rtree.search(bbox).filter(ibbox => gt.intersects_ee(ibbox, bbox));
-        const promises = bboxlist.map(ibbox => this.geofile.getFeatures(ibbox[4], ibbox[5], options));
-        return Promise.all(promises).then(array => {
-            return array.reduce((res, arr) => {
-                res.push(...arr);
-                return res;
-            }, []);
-        });
+        // apply minibox filtering
+        const ranks = bboxlist.reduce((list, bounds) => {
+            const rank = bounds[4];
+            for (let i = 0; i < bounds[5]; i++) {
+                const minibox = this.idxhandle.getMinibox(rank + i, bounds);
+                if (gt.intersects_ee(minibox, bbox))
+                    list.push(rank + i);
+            }
+            return list;
+        }, []);
+        // prepare promises
+        const promises = ranks.map(rank => this.geofile.getFeature(rank, options));
+        return Promise.clean(promises);
+        //.then(array => {
+        //    return array.reduce((res, arr) => {
+        //        res.push(...arr); return res
+        //    }, [])
+        //})
     }
     point(lon, lat, options = {}) {
         const tol = options.pointSearchTolerance ? options.pointSearchTolerance : 0.00001;

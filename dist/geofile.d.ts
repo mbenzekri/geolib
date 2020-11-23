@@ -5,6 +5,7 @@ export interface GeofileHandle {
     rank: number;
     pos: number;
     len: number;
+    mbox?: number;
 }
 export declare enum GeofileFiletype {
     CSV = 0,
@@ -84,7 +85,7 @@ export declare abstract class Geofile {
     }) => void): Promise<void>;
     getIndexBuffer(): Blob;
     protected apply(feature: GeofileFeature, options: GeofileFilter): GeofileFeature;
-    parse(onprogress: (state: {
+    parse(onprogress?: (state: {
         read: number;
         size: number;
         count: number;

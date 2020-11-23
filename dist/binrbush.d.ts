@@ -1,6 +1,6 @@
 import { rbush } from './rbush';
 export declare class binrbush extends rbush {
-    static readonly RTREE_CHILD_MAX = 20;
+    static readonly RTREE_CHILD_MAX = 9;
     static readonly NODE_SIZE = 25;
     constructor();
     toBinary(): ArrayBuffer;

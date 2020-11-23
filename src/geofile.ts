@@ -11,6 +11,7 @@ export interface GeofileHandle {
     rank: number;
     pos: number;
     len: number;
+    mbox?: number;
 }
 
 export enum GeofileFiletype {
@@ -200,6 +201,8 @@ export abstract class Geofile {
             if (index.type === GeofileIndexType.handle) this.handles = index as GeofileIndexHandle
             if (index.type === GeofileIndexType.rtree) this.geoidx = index as GeofileIndexRtree
         }
+        // set handle index to calculate miniboxes
+        this.geoidx.setIndexHandle(this.handles)
         if (!this.handles || count !== this.handles.count) {
             throw new Error(`Geofile.parseIndexes(): missing mandatory handle index in index file`)
         }
@@ -216,12 +219,15 @@ export abstract class Geofile {
             if (index.type === GeofileIndexType.rtree) this.geoidx = index as GeofileIndexRtree
             this.indexes.set(index.name, index)
         })
+        // set handle index to calculate miniboxes
+        this.geoidx.setIndexHandle(this.handles)
+
         // parse all the features
         for (const index of this.indexes.values()) index.begin()
         for await (const feature of this.parse(onprogress)) {
             this.indexes.forEach(index => index.index(feature))
         }
-        for (const index of this.indexes.values()) index.end()
+        for (const index of [...this.indexes.values()].reverse()) index.end()
 
         this._loaded = true
         this.assertTerminated()
@@ -275,7 +281,7 @@ export abstract class Geofile {
         return feature;
     }
 
-    parse(onprogress:(state: {read: number, size: number, count: number}) => void): AsyncGenerator<GeofileFeature> {
+    parse(onprogress?:(state: {read: number, size: number, count: number}) => void): AsyncGenerator<GeofileFeature> {
         const bunch = 1024 * 64
         // eslint-disable-next-line @typescript-eslint/no-this-alias
         const geofile:Geofile = this
