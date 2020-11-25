@@ -455,8 +455,12 @@ if (typeof Blob !== 'undefined' + '')
         const blob = this.slice(offset, offset + length);
         return new Promise((resolve, reject) => {
             const r = new FileReader();
-            r.onerror = () => reject(r.error);
-            r.onload = () => resolve(r.result);
+            r.onerror = () => {
+                return reject(r.error);
+            };
+            r.onload = () => {
+                return resolve(r.result);
+            };
             r.readAsArrayBuffer(blob);
         });
     };
