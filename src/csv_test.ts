@@ -6,7 +6,7 @@ describe('Test csv.ts', () => {
     beforeEach(() => null);
 
     test('Should create', () => {
-        const csv = new Csv('address', new Blob([simple]), { separator: ';', lonlat: ['lon', 'lat'] })
+        const csv = new Csv('address', new Blob([simple]), { separator: ';', lon: 'lon', lat: 'lat' })
         expect(csv).not.toBeNull();
         expect(csv.name).toBe('address')
     })
@@ -77,7 +77,7 @@ describe('Test csv.ts', () => {
     })
 
     test('should parse simple with lat,lon names', async () => {
-        const csv = new Csv('myclass', new Blob([withheader]), { header: true, lonlat: ['lon', 'lat'] })
+        const csv = new Csv('myclass', new Blob([withheader]), { header: true,  lon: 'lon', lat: 'lat' })
         const all = []
         for await (const f of csv.parse()) { if (f) all.push(f) }
         expect(all.length).toEqual(3);
@@ -86,7 +86,7 @@ describe('Test csv.ts', () => {
     })
 
     test('should parse simple with lat,lon numbers', async () => {
-        const csv = new Csv('myclass', new Blob([simple]), { lonlat: [0, 1] })
+        const csv = new Csv('myclass', new Blob([simple]), {  lon: 0, lat: 1  })
         const all = []
         for await (const f of csv.parse()) { if (f) all.push(f) }
         expect(all.length).toEqual(3);
@@ -109,14 +109,14 @@ describe('Test csv.ts', () => {
     })
 
     test('should index handle/rtree geojson ', async () => {
-        const csv = new Csv('myclass', new Blob([withheader]), { header: true, lonlat: ['lon', 'lat'] })
+        const csv = new Csv('myclass', new Blob([withheader]), { header: true, lon: 'lon', lat: 'lat' })
         expect(csv.count).toBe(0);
         await csv.buildIndexes([])
         expect(csv.count).toBe(3);
     })
 
     test('should random access feature csv.readFeature()', async () => {
-        const csv = new Csv('myclass', new Blob([withheader]), { header: true, lonlat: ['lon', 'lat'] })
+        const csv = new Csv('myclass', new Blob([withheader]), { header: true, lon: 'lon', lat: 'lat' })
         await csv.buildIndexes([])
         for (let i = 0; i < 3; i++) {
             const feature = await csv.readFeature(i)
@@ -126,7 +126,7 @@ describe('Test csv.ts', () => {
     })
 
     test('should random access feature csv.getFeature()', async () => {
-        const csv = new Csv('myclass', new Blob([withheader]), { header: true, lonlat: ['lon', 'lat'] })
+        const csv = new Csv('myclass', new Blob([withheader]), { header: true, lon: 'lon', lat: 'lat' })
         await csv.buildIndexes([])
         for (let i = 0; i < 3; i++) {
             const feature = await csv.getFeature(i)
@@ -137,7 +137,7 @@ describe('Test csv.ts', () => {
     })
 
     test('should access all features csv.forEach()', async () => {
-        const csv = new Csv('myclass', new Blob([withheader]), { header: true, lonlat: ['lon', 'lat'] })
+        const csv = new Csv('myclass', new Blob([withheader]), { header: true, lon: 'lon', lat: 'lat' })
         await csv.buildIndexes([])
         let count = 0
         await csv.forEach({
@@ -150,7 +150,7 @@ describe('Test csv.ts', () => {
         expect(count).toBe(3);
     })
     test('should access filtered features csv.forEach()', async () => {
-        const csv = new Csv('myclass', new Blob([withheader]), { header: true, lonlat: ['lon', 'lat'] })
+        const csv = new Csv('myclass', new Blob([withheader]), { header: true, lon: 'lon', lat: 'lat' })
         await csv.buildIndexes([])
         const features: GeofileFeature[] = []
         await csv.forEach({
@@ -163,20 +163,20 @@ describe('Test csv.ts', () => {
     })
 
     test('should get extent from geofile csv.extent()', async () => {
-        const csv = new Csv('myclass', new Blob([withheader]), { header: true, lonlat: ['lon', 'lat'] })
+        const csv = new Csv('myclass', new Blob([withheader]), { header: true, lon: 'lon', lat: 'lat' })
         await csv.buildIndexes([])
         expect(csv.extent).toStrictEqual([-100, -100, 100, 100]);
     })
 
     test('should access features by bbox csv.bbox()', async () => {
-        const csv = new Csv('myclass', new Blob([withheader]), { header: true, lonlat: ['lon', 'lat'] })
+        const csv = new Csv('myclass', new Blob([withheader]), { header: true, lon: 'lon', lat: 'lat' })
         await csv.buildIndexes([])
         const features = await csv.bbox([-200, -200, 200, 0])
         expect(features.length).toBe(2);
     })
 
     test('should access features by point csv.point()', async () => {
-        const csv = new Csv('myclass', new Blob([withheader]), { header: true, lonlat: ['lon', 'lat'] })
+        const csv = new Csv('myclass', new Blob([withheader]), { header: true, lon: 'lon', lat: 'lat' })
         await csv.buildIndexes([])
         const features = await csv.point(100, 100)
         expect(features.length).toBe(1);
@@ -184,7 +184,7 @@ describe('Test csv.ts', () => {
     })
 
     test('should access features by point csv.nearest()', async () => {
-        const csv = new Csv('myclass', new Blob([withheader]), { header: true, lonlat: ['lon', 'lat'] })
+        const csv = new Csv('myclass', new Blob([withheader]), { header: true, lon: 'lon', lat: 'lat' })
         await csv.buildIndexes([])
         const feature = await csv.nearest(50, 50, 40000000)
         expect(feature).not.toBeNull();

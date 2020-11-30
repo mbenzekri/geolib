@@ -1,25 +1,16 @@
+import './polyfill';
 import { Geofile, GeofileHandle, GeofileFeature, GeofileParser } from './geofile';
 export interface CsvOptions {
-    header: boolean;
-    colnames: string[];
-    lonlat: number[];
-    wkt: number;
-    skip: number;
-    separator: number;
-    comment: number;
-    quote: number;
-    escape: number;
-    maxscan: number;
-    limit: number;
-}
-export interface CsvOptionsParam {
-    header?: boolean | string[];
-    lonlat?: number[] | string[] | number | string;
+    header?: boolean;
+    colnames?: string[];
+    lon?: number | string;
+    lat?: number | string;
+    wkt?: number | string;
     skip?: number;
-    separator?: string;
-    comment?: string;
-    quote?: string;
-    escape?: string;
+    separator?: number | string;
+    comment?: number | string;
+    quote?: number | string;
+    escape?: number | string;
     maxscan?: number;
     limit?: number;
 }
@@ -29,8 +20,7 @@ export interface CsvOptionsParam {
 export declare class Csv extends Geofile {
     private file;
     private options;
-    private params;
-    constructor(name: string, datafile: Blob, options?: CsvOptionsParam, indexfile?: Blob);
+    constructor(name: string, datafile: Blob, opts?: CsvOptions, indexfile?: Blob);
     get parser(): GeofileParser;
     open(): Promise<void>;
     close(): Promise<void>;

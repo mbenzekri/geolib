@@ -55,7 +55,7 @@ export class CsvParser extends GeofileParser {
         return this.options.comment === this.chars[0]
     }
     static splitLine(line: string, options: CsvOptions): string[] {
-        const values = line.split(String.fromCharCode(options.separator))
+        const values = line.split(String.fromCharCode(options.separator as number))
             .map(value => (value === '') ? null : value.replace(/^\s*"/, '').replace(/"\s*$/, ''))
         return values
     }
@@ -66,11 +66,11 @@ export class CsvParser extends GeofileParser {
         const properties: { [key: string]: any } = {};
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const values: any[] = CsvParser.splitLine(line, options)
-        if (options.lonlat) {
-            const lon = parseFloat(values[options.lonlat[0]]);
-            const lat = parseFloat(values[options.lonlat[1]]);
-            values[options.lonlat[0]] = lon
-            values[options.lonlat[1]] = lat
+        if (options.lon >= 0 && options.lat >= 0) {
+            const lon = parseFloat(values[options.lon as number]);
+            const lat = parseFloat(values[options.lat as number]);
+            values[options.lon as number] = lon
+            values[options.lat as number] = lat
             geometry = { type: 'Point', coordinates: [lon, lat] };
         }
         values.forEach((value, i) => { if (options.colnames[i]) properties[options.colnames[i]] = value });

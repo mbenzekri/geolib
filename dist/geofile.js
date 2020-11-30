@@ -225,6 +225,8 @@ class Geofile {
             try {
                 for (var _b = __asyncValues(this.parse(onprogress)), _c; _c = yield _b.next(), !_c.done;) {
                     const feature = _c.value;
+                    if (feature instanceof Error)
+                        throw feature;
                     this.indexes.forEach(index => index.index(feature));
                 }
             }

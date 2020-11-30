@@ -22,22 +22,22 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Csv = void 0;
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-const polyfill_1 = require("./polyfill");
+require("./polyfill");
 const geofile_1 = require("./geofile");
 const csvparser_1 = require("./csvparser");
-polyfill_1._();
 /**
  * File System Csv class
  */
 class Csv extends geofile_1.Geofile {
-    constructor(name, datafile, options = {}, indexfile) {
+    constructor(name, datafile, opts = {}, indexfile) {
         super(name, indexfile);
         this.assert(!!datafile, `Csv.constructor(): data file paramemter is not provided or nullish`);
         this.file = datafile;
         this.options = {
             header: false,
             colnames: Array.from({ length: 250 }).map((v, i) => `col${i}`),
-            lonlat: null,
+            lon: null,
+            lat: null,
             wkt: null,
             skip: 0,
             separator: ','.charCodeAt(0),
@@ -47,27 +47,11 @@ class Csv extends geofile_1.Geofile {
             maxscan: 16,
             limit: Infinity
         };
-        this.params = options;
-        if (typeof this.params.header === 'boolean')
-            this.options.header = this.params.header;
-        if (Array.isArray(this.params.header))
-            this.options.header = false;
-        if (Array.isArray(this.params.header))
-            this.options.colnames = this.params.header;
-        if (typeof this.params.skip === 'number')
-            this.options.skip = this.params.skip;
-        if (typeof this.params.separator === 'string')
-            this.options.separator = this.params.separator.charCodeAt(0);
-        if (typeof this.params.comment === 'string')
-            this.options.comment = this.params.comment.charCodeAt(0);
-        if (typeof this.params.quote === 'string')
-            this.options.quote = this.params.quote.charCodeAt(0);
-        if (typeof this.params.escape === 'string')
-            this.options.escape = this.params.escape.charCodeAt(0);
-        if (typeof this.params.maxscan === 'number')
-            this.options.maxscan = this.params.maxscan;
-        if (typeof this.params.limit === 'number')
-            this.options.limit = this.params.limit;
+        Object.assign(this.options, opts);
+        ['separator', 'comment', 'quote', 'escape',].forEach(opt => {
+            if (typeof this.options[opt] === 'string')
+                this.options[opt] = this.options[opt].charCodeAt(0);
+        });
     }
     get parser() {
         return new csvparser_1.CsvParser(this.file, this.options);
@@ -118,28 +102,19 @@ class Csv extends geofile_1.Geofile {
             }
         });
     }
-    assertOptions(dummy = true) {
-        const lonlat = this.params.lonlat;
-        if (Array.isArray(lonlat) && lonlat.length === 2 && typeof lonlat[0] === 'number' && typeof lonlat[1] === 'number') {
-            if (lonlat[0] < 0 || lonlat[0] >= this.options.colnames.length)
-                throw Error(`incorrect option Csv lonlat: lon index  out of range`);
-            if (lonlat[1] < 0 || lonlat[1] >= this.options.colnames.length)
-                throw Error(`incorrect option Csv lonlat: lat index out of range`);
-            this.options.lonlat = lonlat;
-        }
-        if (Array.isArray(lonlat) && lonlat.length === 2 && typeof lonlat[0] === 'string' && typeof lonlat[1] === 'string') {
-            if (!this.options.colnames.find(colname => colname === lonlat[0]))
-                throw Error(`incorrect option Csv lonlat: lon column name not found`);
-            if (!this.options.colnames.find(colname => colname === lonlat[1]))
-                throw Error(`incorrect option Csv lonlat: lat column name not found`);
-            this.options.lonlat = [this.options.colnames.indexOf(lonlat[0]), this.options.colnames.indexOf(lonlat[1])];
-        }
-        if (typeof lonlat === 'number') {
-            throw Error(`incorrect option Csv lonlat: WKT not yet implemented`);
-        }
-        if (typeof lonlat === 'string') {
-            throw Error(`incorrect option Csv lonlat: WKT not yet implemented`);
-        }
+    assertOptions() {
+        // change all colnames expressed as number to index in colnames
+        ['lon', 'lat', 'wkt'].forEach(opt => {
+            if (typeof this.options[opt] === 'string')
+                this.options[opt] = this.options.colnames.indexOf(this.options[opt]);
+        });
+        const colcount = this.options.colnames.length;
+        if (this.options.lon !== null && (this.options.lon < 0 || this.options.lon >= colcount))
+            throw Error(`incorrect option Csv lon: lon colname not found or index  out of range`);
+        if (this.options.lat !== null && (this.options.lat < 0 || this.options.lat >= colcount))
+            throw Error(`incorrect option Csv lat: lat colname not found or index  out of range`);
+        if (this.options.wkt !== null && (this.options.wkt < 0 || this.options.wkt >= colcount))
+            throw Error(`incorrect option Csv wkt: WKT not yet implemented !`);
     }
 }
 exports.Csv = Csv;

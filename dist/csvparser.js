@@ -73,11 +73,11 @@ class CsvParser extends geofile_1.GeofileParser {
         const properties = {};
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const values = CsvParser.splitLine(line, options);
-        if (options.lonlat) {
-            const lon = parseFloat(values[options.lonlat[0]]);
-            const lat = parseFloat(values[options.lonlat[1]]);
-            values[options.lonlat[0]] = lon;
-            values[options.lonlat[1]] = lat;
+        if (options.lon >= 0 && options.lat >= 0) {
+            const lon = parseFloat(values[options.lon]);
+            const lat = parseFloat(values[options.lat]);
+            values[options.lon] = lon;
+            values[options.lat] = lat;
             geometry = { type: 'Point', coordinates: [lon, lat] };
         }
         values.forEach((value, i) => { if (options.colnames[i])

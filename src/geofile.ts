@@ -172,7 +172,7 @@ export abstract class Geofile {
             .filter(f => f);
     }
 
-    private async loadIndexes() : Promise<void>  {
+    private async loadIndexes(): Promise<void> {
         const buffer = await this.indexFile.read()
         const indexes: GeofileIndex[] = []
 
@@ -208,7 +208,7 @@ export abstract class Geofile {
         }
     }
 
-    async buildIndexes(idxlist: GeofileIndexDef[],onprogress?: (state: {read: number ,size: number,count: number}) => void): Promise<void> {
+    async buildIndexes(idxlist: GeofileIndexDef[], onprogress?: (state: { read: number, size: number, count: number }) => void): Promise<void> {
 
         // build all mandatory indexes and defined indexes
         idxlist = [{ attribute: 'rank', type: GeofileIndexType.handle }, { attribute: 'geometry', type: GeofileIndexType.rtree }, ...idxlist]
@@ -225,6 +225,7 @@ export abstract class Geofile {
         // parse all the features
         for (const index of this.indexes.values()) index.begin()
         for await (const feature of this.parse(onprogress)) {
+            if (feature instanceof Error) throw feature
             this.indexes.forEach(index => index.index(feature))
         }
         for (const index of [...this.indexes.values()].reverse()) index.end()
@@ -281,10 +282,10 @@ export abstract class Geofile {
         return feature;
     }
 
-    parse(onprogress?:(state: {read: number, size: number, count: number}) => void): AsyncGenerator<GeofileFeature> {
+    parse(onprogress?: (state: { read: number, size: number, count: number }) => void): AsyncGenerator<GeofileFeature> {
         const bunch = 1024 * 64
         // eslint-disable-next-line @typescript-eslint/no-this-alias
-        const geofile:Geofile = this
+        const geofile: Geofile = this
         const iter = async function* () {
             let offset = 0
             let err = null
@@ -299,8 +300,8 @@ export abstract class Geofile {
                 const array = new Uint8Array(buffer)
                 for (let i = 0; i < array.byteLength && !err; i++) {
                     const byte = array[i]
-                    err = parser.consume(byte,file.size)
-                    if (err) 
+                    err = parser.consume(byte, file.size)
+                    if (err)
                         throw Error(`Geofile.parse(): ${err.msg} at ${err.line}:${err.col} offset=${parser.pos}`)
                 }
                 offset += bunch
