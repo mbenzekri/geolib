@@ -25,11 +25,13 @@ export class Shapefile extends Geofile {
         return [this.shpheader.xmin, this.shpheader.ymin, this.shpheader.xmax, this.shpheader.ymax]
     }
 
+    get type()  { return 'shp' }
+
     get parser(): ShapefileParser {
         return new ShapefileParser(this.shpfile, this.dbffile)
     }
     async open() {
-        const dv = await this.shpfile.readDv(0, 100)
+        const dv = await this.shpfile.dataview(0, 100)
         this.shpheader = ShapefileParser.shpHeaderReader(dv)
         this.dbfheader = { code: 9994, lastUpdate: new Date(), count: 0, headerSize: 0, recordSize: 0, encrypted: 0, fields: new Map() }
         if (this.dbffile) {
@@ -43,8 +45,8 @@ export class Shapefile extends Geofile {
         const handle = this.getHandle(rank);
         const attrpos = this.dbfheader.headerSize + (handle.rank * this.dbfheader.recordSize) + 1;
         try {
-            const shpdv = await this.shpfile.readDv(handle.pos, handle.len)
-            const dbfdv = this.dbffile ? await this.dbffile.readDv(attrpos, this.dbfheader.recordSize) : null
+            const shpdv = await this.shpfile.dataview(handle.pos, handle.len)
+            const dbfdv = this.dbffile ? await this.dbffile.dataview(attrpos, this.dbfheader.recordSize) : null
             const feature = ShapefileParser.buidFeature(handle, shpdv, dbfdv, this.dbfheader.fields)
             return feature
         } catch (err) {
@@ -57,11 +59,11 @@ export class Shapefile extends Geofile {
             const hmin = this.getHandle(rank);
             const hmax = this.getHandle(rank + limit - 1);
             const length = (hmax.pos - hmin.pos + hmax.len);
-            const shpbuf = await this.shpfile.read(hmin.pos, length)
+            const shpbuf = await this.shpfile.arrayBuffer(hmin.pos, length)
 
             const amin = this.dbfheader.headerSize + (hmin.rank * this.dbfheader.recordSize) + 1;
             const alen = limit * this.dbfheader.recordSize;
-            const dbfbuf = this.dbffile ? await this.dbffile.read(amin, alen) : null
+            const dbfbuf = this.dbffile ? await this.dbffile.arrayBuffer(amin, alen) : null
 
             const features = [];
             for (let i = 0; i < limit; i++) {

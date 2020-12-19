@@ -3,7 +3,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports._ = void 0;
+exports._ = exports.toUtf8 = void 0;
 // mots de liaisons à supprimer (article, conjonctions, ...)
 const SUPPR = [
     'A',
@@ -448,46 +448,6 @@ const CLEANPREFIX = [
     // tslint:disable-next-line:max-line-length
     { name: 'Suppr exces blancs ', op: function (value) { return !value ? value : value.replace(/^ */, '').replace(/ *$/g, '').replace(/ +/g, ' '); } }
 ];
-if (typeof Blob !== 'undefined' + '')
-    Blob.prototype.read = function (offset = 0, length = this.size) {
-        if (!this)
-            return Promise.reject("null blob provided to read");
-        const blob = this.slice(offset, offset + length);
-        return new Promise((resolve, reject) => {
-            const r = new FileReader();
-            r.onerror = () => {
-                return reject(r.error);
-            };
-            r.onload = () => {
-                return resolve(r.result);
-            };
-            r.readAsArrayBuffer(blob);
-        });
-    };
-if (typeof Blob !== 'undefined' + '')
-    Blob.prototype.readDv = function (offset = 0, length = this.size) {
-        if (!this)
-            return Promise.reject("null blob provided to read");
-        const blob = this.slice(offset, offset + length);
-        return new Promise((resolve, reject) => {
-            const r = new FileReader();
-            r.onerror = () => reject(r.error);
-            r.onload = () => resolve(new DataView(r.result));
-            r.readAsArrayBuffer(blob);
-        });
-    };
-if (typeof Blob !== 'undefined' + '')
-    Blob.prototype.readText = function (offset = 0, length = this.size) {
-        if (!this)
-            return Promise.reject("null blob provided to read");
-        const blob = this.slice(offset, offset + length);
-        return new Promise((resolve, reject) => {
-            const r = new FileReader();
-            r.onerror = () => reject(r.error);
-            r.onload = () => resolve(r.result);
-            r.readAsText(blob);
-        });
-    };
 DataView.prototype.setAscii = function (offset, str, length = str.length) {
     length = Math.min(str.length, length);
     for (let i = 0; i < length; i++)
@@ -499,22 +459,20 @@ DataView.prototype.getAscii = function (offset, length) {
         array.push(String.fromCharCode(this.getUint8(offset + i)));
     return array.join('');
 };
-Uint8Array.prototype.getUtf8 =
-    ArrayBuffer.prototype.getUtf8 =
-        SharedArrayBuffer.prototype.getUtf8 =
-            function (offset, length) {
-                const buffer = this.slice(offset, offset + length);
-                if (window.TextDecoder) {
-                    const td = new TextDecoder();
-                    return td.decode(buffer).trimzero();
-                }
-                else {
-                    // eslint-disable-next-line @typescript-eslint/no-var-requires
-                    const StringDecoder = require("string_decoder").StringDecoder;
-                    const sd = new StringDecoder();
-                    return sd.end(Buffer.from(buffer)).trimzero();
-                }
-            };
+function toUtf8(array, offset = 0, length = array.byteLength) {
+    const buffer = array.slice(offset, offset + length);
+    if (window.TextDecoder) {
+        const td = new TextDecoder();
+        return td.decode(buffer).trimzero();
+    }
+    else {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const StringDecoder = require("string_decoder").StringDecoder;
+        const sd = new StringDecoder();
+        return sd.end(Buffer.from(buffer)).trimzero();
+    }
+}
+exports.toUtf8 = toUtf8;
 DataView.prototype.getUtf8 = function (offset, length) {
     if (window.TextDecoder) {
         const td = new TextDecoder();

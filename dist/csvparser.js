@@ -10,6 +10,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CsvParser = void 0;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const polyfill_1 = require("./polyfill");
 const geofile_1 = require("./geofile");
 const CR = '\n'.charCodeAt(0);
 const LF = '\r'.charCodeAt(0);
@@ -33,7 +35,7 @@ class CsvParser extends geofile_1.GeofileParser {
                 break;
             case byte === CR: // wait for CR
                 if (!this.isempty() && !this.iscomment()) {
-                    const line = Uint8Array.from(this.chars).getUtf8(0, this.chars.length);
+                    const line = polyfill_1.toUtf8(Uint8Array.from(this.chars), 0, this.chars.length);
                     const handle = { rank: this.expected(), pos: this.start, len: this.pos - this.start };
                     const feature = CsvParser.build(line, handle, this.options);
                     this.produce(feature);
@@ -91,7 +93,7 @@ class CsvParser extends geofile_1.GeofileParser {
         return __awaiter(this, void 0, void 0, function* () {
             // read column names in header
             const maxscan = 1024 * options.maxscan;
-            const buffer = yield file.read(0, maxscan + 10);
+            const buffer = yield file.arrayBuffer(0, maxscan + 10);
             const array = new Uint8Array(buffer);
             let offset = 0, length = array.indexOf(CR);
             for (let line = 0; line < options.skip && offset < maxscan && length >= 0; line++) {
@@ -102,7 +104,7 @@ class CsvParser extends geofile_1.GeofileParser {
                 throw Error('Csv header not found in ${this.options.maxscan}k first bytes');
             while (offset < maxscan && length >= 0) {
                 if (length > 0 && array[offset] !== options.comment) {
-                    const line = buffer.getUtf8(offset, length);
+                    const line = polyfill_1.toUtf8(buffer, offset, length);
                     return CsvParser.splitLine(line, options);
                 }
                 offset += length + 1;

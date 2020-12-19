@@ -86,7 +86,7 @@ class ShapefileParser extends geofile_1.GeofileParser {
                     }
                     else {
                         const attrpos = this.dbfheader.headerSize + (handle.rank * this.dbfheader.recordSize) + 1;
-                        this.dbffile.readDv(attrpos, this.dbfheader.recordSize)
+                        this.dbffile.dataview(attrpos, this.dbfheader.recordSize)
                             .then(dbfdv => {
                             const feature = ShapefileParser.buidFeature(handle, shpdv, dbfdv, this.dbfheader.fields);
                             this.produce(feature);
@@ -189,7 +189,7 @@ class ShapefileParser extends geofile_1.GeofileParser {
     static dbfHeaderReader(dbffile) {
         return __awaiter(this, void 0, void 0, function* () {
             // read header
-            const hdv = yield dbffile.readDv(0, 32);
+            const hdv = yield dbffile.dataview(0, 32);
             const code = hdv.getUint8(0);
             const lastUpdate = new Date(1900 + hdv.getUint8(1), hdv.getUint8(2) - 1, hdv.getUint8(3));
             const count = hdv.getUint32(4, true);
@@ -198,7 +198,7 @@ class ShapefileParser extends geofile_1.GeofileParser {
             const encrypted = hdv.getUint8(15);
             // read fields
             const fldsize = headerSize - 33;
-            const fdv = yield dbffile.readDv(32, fldsize);
+            const fdv = yield dbffile.dataview(32, fldsize);
             const fields = new Map();
             let offset = 0;
             for (let pos = 0; pos < fdv.byteLength; pos += 32) {

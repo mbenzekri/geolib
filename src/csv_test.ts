@@ -1,3 +1,6 @@
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import  './fileapi'
+import  './polyfill'
 import { simple, csvban, withnull, withheader, simpleskip3, withheaderskip3, withcomment, withempty } from '../data/csvdata'
 import { Csv,GeofileFeature,GeofileIndexType } from './index'
 

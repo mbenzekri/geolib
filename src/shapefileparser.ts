@@ -92,7 +92,7 @@ export class ShapefileParser extends GeofileParser {
 
                     } else {
                         const attrpos = this.dbfheader.headerSize + (handle.rank * this.dbfheader.recordSize) + 1;
-                        this.dbffile.readDv(attrpos, this.dbfheader.recordSize)
+                        this.dbffile.dataview(attrpos, this.dbfheader.recordSize)
                             .then(dbfdv => {
                                 const feature = ShapefileParser.buidFeature(handle, shpdv, dbfdv, this.dbfheader.fields)
                                 this.produce(feature)
@@ -202,7 +202,7 @@ export class ShapefileParser extends GeofileParser {
     */
     static async dbfHeaderReader(dbffile: Blob): Promise<DbfHeader> {
         // read header
-        const hdv = await dbffile.readDv(0, 32)
+        const hdv = await dbffile.dataview(0, 32)
         const code = hdv.getUint8(0)
         const lastUpdate = new Date(1900 + hdv.getUint8(1), hdv.getUint8(2) - 1, hdv.getUint8(3))
         const count = hdv.getUint32(4, true)
@@ -212,7 +212,7 @@ export class ShapefileParser extends GeofileParser {
 
         // read fields
         const fldsize = headerSize - 33;
-        const fdv = await dbffile.readDv(32, fldsize)
+        const fdv = await dbffile.dataview(32, fldsize)
         const fields = new Map()
         let offset = 0;
         for (let pos = 0; pos < fdv.byteLength; pos += 32) {

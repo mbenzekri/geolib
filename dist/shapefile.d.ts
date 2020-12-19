@@ -11,6 +11,7 @@ export declare class Shapefile extends Geofile {
     private dbfheader;
     constructor(name: string, shpfile: Blob, dbffile?: Blob, indexfile?: Blob);
     get extent(): number[];
+    get type(): string;
     get parser(): ShapefileParser;
     open(): Promise<void>;
     close(): Promise<void>;

@@ -1,4 +1,5 @@
-import { Geojson,GeofileIndexType,GeofileFeature } from './index'
+import './fileapi'
+import { Geojson, GeofileIndexType, GeofileFeature } from './index'
 import { paris, simple, withescape, withescapeerr, withnull } from '../data/geojsondata'
 
 describe('Test geojson.ts', () => {
@@ -17,11 +18,11 @@ describe('Test geojson.ts', () => {
     test('Should fail to parse dummy json', async () => {
         const geojson = new Geojson('myclass', new Blob(['{ beurk! }']))
         let err
-        try { for await (const f of geojson.parse()) { f } }  
-        catch (e) {  err = e }
+        try { for await (const f of geojson.parse()) { f } }
+        catch (e) { err = e }
         expect(err).toBeInstanceOf(Error)
         expect(err.message).toMatch('Syntax error unexpected char');
-})
+    })
 
     test('should parse simple geojson', async () => {
         const geojson = new Geojson('myclass', new Blob([simple]))
@@ -41,7 +42,7 @@ describe('Test geojson.ts', () => {
         const geojson = new Geojson('myclass', new Blob([withnull]))
         const all = []
         for await (const f of geojson.parse()) { if (f) all.push(f) }
-        [0,3,5].forEach(i => expect(all[i].properties.name).toBeNull())
+        [0, 3, 5].forEach(i => expect(all[i].properties.name).toBeNull())
         expect(all.length).toEqual(6);
     })
 

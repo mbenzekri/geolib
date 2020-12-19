@@ -1,6 +1,5 @@
-import { GeofileParser, GeofileFeature } from "./geofile";
+import { GeofileParser, GeofileFeature, GeofileHandle } from "./geofile";
 import { CsvOptions } from "./csv";
-import { GeofileHandle } from "./geofile";
 export declare class CsvParser extends GeofileParser {
     private file;
     private options;

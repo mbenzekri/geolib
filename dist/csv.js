@@ -53,6 +53,7 @@ class Csv extends geofile_1.Geofile {
                 this.options[opt] = this.options[opt].charCodeAt(0);
         });
     }
+    get type() { return 'csv'; }
     get parser() {
         return new csvparser_1.CsvParser(this.file, this.options);
     }
@@ -71,7 +72,7 @@ class Csv extends geofile_1.Geofile {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const handle = (typeof rank === 'number') ? this.getHandle(rank) : rank;
-                const line = yield this.file.readText(handle.pos, handle.len);
+                const line = yield this.file.text(handle.pos, handle.len);
                 const feature = csvparser_1.CsvParser.build(line, handle, this.options);
                 return feature;
             }
@@ -86,8 +87,7 @@ class Csv extends geofile_1.Geofile {
                 const hmin = this.getHandle(rank);
                 const hmax = this.getHandle(rank + limit - 1);
                 const length = (hmax.pos - hmin.pos + hmax.len);
-                const lines = yield this.file.read(hmin.pos, length);
-                const dv = new DataView(lines);
+                const dv = yield this.file.dataview(hmin.pos, length);
                 const features = [];
                 for (let i = 0; i < limit; i++) {
                     const handle = this.getHandle(rank + i);

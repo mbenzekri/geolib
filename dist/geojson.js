@@ -34,6 +34,7 @@ class Geojson extends geofile_1.Geofile {
         this.assert(!!datafile, `Geojson.constructor(): data file paramemter is not provided or nullish`);
         this.file = datafile;
     }
+    get type() { return 'geojson'; }
     get parser() { return new geojsonparser_1.GeojsonParser(this.file); }
     open() {
         return __awaiter(this, void 0, void 0, function* () { return; });
@@ -45,11 +46,11 @@ class Geojson extends geofile_1.Geofile {
         return __awaiter(this, void 0, void 0, function* () {
             const handle = this.getHandle(rank);
             try {
-                const json = yield this.file.readText(handle.pos, handle.len);
+                const json = yield this.file.text(handle.pos, handle.len);
                 return JSON.parse(json);
             }
             catch (e) {
-                throw new Error(`Geojson.readFeature(): unable to read feature due to ${e.message | e.toString()}`);
+                throw new Error(`Geojson.readFeature(): unable to read feature due to ${e.toString()}`);
             }
         });
     }
@@ -59,7 +60,7 @@ class Geojson extends geofile_1.Geofile {
             const hmax = this.getHandle(rank + limit - 1);
             const length = (hmax.pos - hmin.pos + hmax.len);
             try {
-                const array = yield this.file.read(hmin.pos, hmin.pos + length);
+                const array = yield this.file.arrayBuffer(hmin.pos, hmin.pos + length);
                 const dv = new DataView(array);
                 const features = [];
                 for (let i = 0; i < limit; i++) {

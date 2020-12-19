@@ -1,4 +1,5 @@
 import { GeofileHandle, GeofileParser, GeofileFeature } from "./geofile"
+import { toUtf8 } from "./polyfill"
 
 const ocurly = '{'.charCodeAt(0)
 const ccurly = '}'.charCodeAt(0)
@@ -136,7 +137,7 @@ export class GeojsonParser extends GeofileParser {
         if (isfeature) {
             this.curfeat = null
             const buffer = Uint8Array.from(item.value)
-            const json = buffer.getUtf8(0,item.value.length)
+            const json = toUtf8(buffer,0,item.value.length)
             try  {
                 const feature = JSON.parse(json) as GeofileFeature
                 feature.rank = this.expected()

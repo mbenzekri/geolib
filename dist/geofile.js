@@ -88,8 +88,9 @@ function getoffsets(offset, offsets) {
     return Object.keys(offsets).reduce((res, key) => { res[key] = offset + offsets[key]; return res; }, {});
 }
 exports.setFilter = (gf, filter) => {
+    var _a;
     const options = gf.applyTo({});
-    options._internalFilter = options._internalFilter || [];
+    options._internalFilter = (_a = options._internalFilter) !== null && _a !== void 0 ? _a : [];
     options._internalFilter.push(filter);
     return options;
 };
@@ -168,7 +169,7 @@ class Geofile {
     }
     loadIndexes() {
         return __awaiter(this, void 0, void 0, function* () {
-            const buffer = yield this.indexFile.read();
+            const buffer = yield this.indexFile.arrayBuffer();
             const indexes = [];
             // read feature count and index count (length = HEADER_TSIZE)
             let dv = new DataView(buffer, 0, HEADER_RSIZE);
@@ -311,7 +312,7 @@ class Geofile {
                         yield yield __await(parser.collected.shift());
                     if (onprogress)
                         onprogress(parser.progress);
-                    const buffer = yield __await(file.read(offset, bunch));
+                    const buffer = yield __await(file.arrayBuffer(offset, bunch));
                     const array = new Uint8Array(buffer);
                     for (let i = 0; i < array.byteLength && !err; i++) {
                         const byte = array[i];
@@ -425,31 +426,14 @@ class Geofile {
     addToMap(map, ol, minscale, maxscale, style) {
         let last_extent = ol.extent.createEmpty();
         const format = new ol.format.GeoJSON();
-        /** default style definition */
-        const fill = new ol.style.Fill({
-            color: 'rgba(255,255,255,0.4)'
-        });
-        const stroke = new ol.style.Stroke({
-            color: '#3399CC',
-            width: 1.25
-        });
-        const DEFAULT_STYLE = [
-            new ol.style.Style({
-                image: new ol.style.Circle({
-                    fill: fill,
-                    stroke: stroke,
-                    radius: 5
-                }),
-                fill: fill,
-                stroke: stroke
-            })
-        ];
+        const defstyle = new ol.layer.Vector().getStyleFunction()();
         // we define a loader for vector source
         const loader = (extent, resolution, proj) => {
             if (ol.extent.equals(extent, last_extent)) {
                 return;
             }
             last_extent = extent;
+            proj = (typeof proj === 'string') ? proj : proj.getCode();
             const scale = this.getScale(resolution, proj);
             extent = (proj === this.proj) ? extent : ol.proj.transformExtent(extent, proj, this.proj);
             if ((!maxscale || scale < maxscale) && (!minscale || scale >= minscale)) {
@@ -469,11 +453,12 @@ class Geofile {
             renderMode: 'image',
             visible: true,
             source: vsource,
-            style: style ? style : DEFAULT_STYLE,
-            minResolution: this.getResolution(minscale, map.getView().getProjection()),
-            maxResolution: this.getResolution(maxscale, map.getView().getProjection())
+            style: style ? style : defstyle,
+            minResolution: this.getResolution(minscale, map.getView().getProjection().getCode()),
+            maxResolution: this.getResolution(maxscale, map.getView().getProjection().getCode())
         });
         map.addLayer(vlayer);
+        return vlayer;
     }
     assertLoaded(dummy = true) {
         if (this.loaded)

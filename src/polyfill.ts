@@ -483,59 +483,9 @@ declare global {
         setAscii(offset: number, str: string, length?: number): void
         getAscii(offset: number, length: number): string
     }
-    interface Blob {
-        read(offset?: number, length?: number): Promise<ArrayBuffer>
-        readText(offset?: number, length?: number): Promise<string>
-        readDv(offset?: number, length?: number): Promise<DataView>
-    }
-    interface ArrayBuffer {
-        getUtf8(offset: number, length: number): string;
-    }
-    interface Uint8Array {
-        getUtf8(offset: number, length: number): string;
-    }
-    interface SharedArrayBuffer {
-        getUtf8(offset: number, length: number): string;
-    }
+
 }
 
-if (typeof Blob !== 'undefined' + '') Blob.prototype.read = function (offset = 0, length = this.size): Promise<ArrayBuffer> {
-    if (!this) return Promise.reject("null blob provided to read")
-    const blob = this.slice(offset, offset + length)
-    return new Promise((resolve, reject) => {
-        const r = new FileReader();
-        r.onerror = () => {
-            return reject(r.error)
-        }
-        r.onload = () => {
-            return resolve(r.result as ArrayBuffer)
-        }
-        r.readAsArrayBuffer(blob)
-    })
-}
-
-if (typeof Blob !== 'undefined' + '') Blob.prototype.readDv = function (offset = 0, length = this.size): Promise<DataView> {
-    if (!this) return Promise.reject("null blob provided to read")
-    const blob = this.slice(offset, offset + length)
-    return new Promise((resolve, reject) => {
-        const r = new FileReader();
-        r.onerror = () => reject(r.error)
-        r.onload = () => resolve(new DataView(r.result as ArrayBuffer))
-        r.readAsArrayBuffer(blob)
-    })
-}
-
-
-if (typeof Blob !== 'undefined' + '') Blob.prototype.readText = function (offset = 0, length = this.size): Promise<string> {
-    if (!this) return Promise.reject("null blob provided to read")
-    const blob = this.slice(offset, offset + length)
-    return new Promise((resolve, reject) => {
-        const r = new FileReader();
-        r.onerror = () => reject(r.error)
-        r.onload = () => resolve(r.result as string)
-        r.readAsText(blob)
-    })
-}
 
 DataView.prototype.setAscii = function (offset: number, str: string, length = str.length) {
     length = Math.min(str.length, length)
@@ -548,21 +498,18 @@ DataView.prototype.getAscii = function (offset: number, length: number) {
     return array.join('');
 }
 
-Uint8Array.prototype.getUtf8 =
-    ArrayBuffer.prototype.getUtf8 =
-    SharedArrayBuffer.prototype.getUtf8 =
-    function (offset: number, length: number): string {
-        const buffer = this.slice(offset, offset + length)
-        if (window.TextDecoder) {
-            const td = new TextDecoder();
-            return td.decode(buffer).trimzero();
-        } else {
-            // eslint-disable-next-line @typescript-eslint/no-var-requires
-            const StringDecoder = require("string_decoder").StringDecoder;
-            const sd = new StringDecoder();
-            return sd.end(Buffer.from(buffer)).trimzero();
-        }
+export function toUtf8( array: Uint8Array | ArrayBuffer | SharedArrayBuffer,offset = 0, length = array.byteLength): string {
+    const buffer = array.slice(offset, offset + length)
+    if (window.TextDecoder) {
+        const td = new TextDecoder();
+        return td.decode(buffer).trimzero();
+    } else {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const StringDecoder = require("string_decoder").StringDecoder;
+        const sd = new StringDecoder();
+        return sd.end(Buffer.from(buffer)).trimzero();
     }
+}
 
 
 

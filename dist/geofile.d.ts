@@ -65,6 +65,7 @@ export declare abstract class Geofile {
     get extent(): number[];
     private getIndex;
     abstract get parser(): GeofileParser;
+    abstract get type(): string;
     abstract open(): Promise<any>;
     abstract close(): Promise<any>;
     abstract readFeature(rank: number): Promise<GeofileFeature>;
@@ -105,7 +106,7 @@ export declare abstract class Geofile {
      * @param map an openlayers 3+ Map
      * @param ol an openlayers 3+ global object
      */
-    addToMap(map: any, ol: any, minscale: number, maxscale: number, style: any): void;
+    addToMap(map: any, ol: any, minscale: number, maxscale: number, style: any): any;
     assertLoaded(dummy?: boolean): asserts dummy;
     assertRank(rank: number): asserts rank;
     assertIndex(attribute: string, type: GeofileIndexType): asserts attribute;

@@ -38,12 +38,13 @@ class Shapefile extends geofile_1.Geofile {
     get extent() {
         return [this.shpheader.xmin, this.shpheader.ymin, this.shpheader.xmax, this.shpheader.ymax];
     }
+    get type() { return 'shp'; }
     get parser() {
         return new shapefileparser_1.ShapefileParser(this.shpfile, this.dbffile);
     }
     open() {
         return __awaiter(this, void 0, void 0, function* () {
-            const dv = yield this.shpfile.readDv(0, 100);
+            const dv = yield this.shpfile.dataview(0, 100);
             this.shpheader = shapefileparser_1.ShapefileParser.shpHeaderReader(dv);
             this.dbfheader = { code: 9994, lastUpdate: new Date(), count: 0, headerSize: 0, recordSize: 0, encrypted: 0, fields: new Map() };
             if (this.dbffile) {
@@ -59,8 +60,8 @@ class Shapefile extends geofile_1.Geofile {
             const handle = this.getHandle(rank);
             const attrpos = this.dbfheader.headerSize + (handle.rank * this.dbfheader.recordSize) + 1;
             try {
-                const shpdv = yield this.shpfile.readDv(handle.pos, handle.len);
-                const dbfdv = this.dbffile ? yield this.dbffile.readDv(attrpos, this.dbfheader.recordSize) : null;
+                const shpdv = yield this.shpfile.dataview(handle.pos, handle.len);
+                const dbfdv = this.dbffile ? yield this.dbffile.dataview(attrpos, this.dbfheader.recordSize) : null;
                 const feature = shapefileparser_1.ShapefileParser.buidFeature(handle, shpdv, dbfdv, this.dbfheader.fields);
                 return feature;
             }
@@ -75,10 +76,10 @@ class Shapefile extends geofile_1.Geofile {
                 const hmin = this.getHandle(rank);
                 const hmax = this.getHandle(rank + limit - 1);
                 const length = (hmax.pos - hmin.pos + hmax.len);
-                const shpbuf = yield this.shpfile.read(hmin.pos, length);
+                const shpbuf = yield this.shpfile.arrayBuffer(hmin.pos, length);
                 const amin = this.dbfheader.headerSize + (hmin.rank * this.dbfheader.recordSize) + 1;
                 const alen = limit * this.dbfheader.recordSize;
-                const dbfbuf = this.dbffile ? yield this.dbffile.read(amin, alen) : null;
+                const dbfbuf = this.dbffile ? yield this.dbffile.arrayBuffer(amin, alen) : null;
                 const features = [];
                 for (let i = 0; i < limit; i++) {
                     const handle = this.getHandle(rank + i);

@@ -77,7 +77,7 @@ export interface GeofileFilter {
 }
 export const setFilter = (gf: GeofileFilter, filter: (feature: GeofileFeature) => boolean): GeofileFilter => {
     const options: GeofileFilter = gf.applyTo({}) as any;
-    options._internalFilter = options._internalFilter || []
+    options._internalFilter = options._internalFilter ?? []
     options._internalFilter.push(filter);
     return options;
 }
@@ -108,6 +108,7 @@ export abstract class Geofile {
     }
 
     abstract get parser(): GeofileParser
+    abstract get type(): string
     abstract open(): Promise<any>
     abstract close(): Promise<any>
     abstract readFeature(rank: number): Promise<GeofileFeature>
@@ -173,7 +174,7 @@ export abstract class Geofile {
     }
 
     private async loadIndexes(): Promise<void> {
-        const buffer = await this.indexFile.read()
+        const buffer = await this.indexFile.arrayBuffer()
         const indexes: GeofileIndex[] = []
 
         // read feature count and index count (length = HEADER_TSIZE)
@@ -296,7 +297,7 @@ export abstract class Geofile {
             while (offset < file.size && !err) {
                 while (parser.collected.length > 0) yield parser.collected.shift()
                 if (onprogress) onprogress(parser.progress)
-                const buffer = await file.read(offset, bunch)
+                const buffer = await file.arrayBuffer(offset, bunch)
                 const array = new Uint8Array(buffer)
                 for (let i = 0; i < array.byteLength && !err; i++) {
                     const byte = array[i]
@@ -415,34 +416,17 @@ export abstract class Geofile {
      * @param map an openlayers 3+ Map
      * @param ol an openlayers 3+ global object
      */
-    addToMap(map: any, ol: any, minscale: number, maxscale: number, style: any): void {
+    addToMap(map: any, ol: any, minscale: number, maxscale: number, style: any): any {
         let last_extent = ol.extent.createEmpty();
         const format = new ol.format.GeoJSON();
-        /** default style definition */
-        const fill = new ol.style.Fill({
-            color: 'rgba(255,255,255,0.4)'
-        });
-        const stroke = new ol.style.Stroke({
-            color: '#3399CC',
-            width: 1.25
-        });
-        const DEFAULT_STYLE = [
-            new ol.style.Style({
-                image: new ol.style.Circle({
-                    fill: fill,
-                    stroke: stroke,
-                    radius: 5
-                }),
-                fill: fill,
-                stroke: stroke
-            })
-        ];
+        const defstyle = new ol.layer.Vector().getStyleFunction()();
 
 
         // we define a loader for vector source
         const loader = (extent, resolution, proj) => {
             if (ol.extent.equals(extent, last_extent)) { return; }
             last_extent = extent;
+            proj = (typeof proj === 'string') ? proj : proj.getCode()
             const scale = this.getScale(resolution, proj);
             extent = (proj === this.proj) ? extent : ol.proj.transformExtent(extent, proj, this.proj);
             if ((!maxscale || scale < maxscale) && (!minscale || scale >= minscale)) {
@@ -461,11 +445,12 @@ export abstract class Geofile {
             renderMode: 'image',
             visible: true,
             source: vsource,
-            style: style ? style : DEFAULT_STYLE,
-            minResolution: this.getResolution(minscale, map.getView().getProjection()),
-            maxResolution: this.getResolution(maxscale, map.getView().getProjection())
+            style: style ? style : defstyle,
+            minResolution: this.getResolution(minscale, map.getView().getProjection().getCode()),
+            maxResolution: this.getResolution(maxscale, map.getView().getProjection().getCode())
         });
         map.addLayer(vlayer);
+        return vlayer
     }
 
 

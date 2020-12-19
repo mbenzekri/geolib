@@ -21,6 +21,7 @@ export declare class Csv extends Geofile {
     private file;
     private options;
     constructor(name: string, datafile: Blob, opts?: CsvOptions, indexfile?: Blob);
+    get type(): string;
     get parser(): GeofileParser;
     open(): Promise<void>;
     close(): Promise<void>;

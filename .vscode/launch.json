@@ -1,11 +1,25 @@
 {
     "version": "0.2.0",
     "configurations": [
-        {
+    {
+        "name": "Indexer",
+        "type": "node",
+        "request": "launch",
+        "runtimeArgs": ["--inspect-brk", "${workspaceRoot}/indexer/indexer.js","C:/Work/data/france/adresses-59-10k.csv"],
+        "console": "integratedTerminal",
+        "internalConsoleOptions": "neverOpen"
+   },
+    {
             "name": "Debug Jest Tests",
             "type": "node",
             "request": "launch",
-            "runtimeArgs": ["--inspect-brk", "${workspaceRoot}/node_modules/jest/bin/jest", "./src/csv_test.ts", "--runInBand", "--coverage", "false"],
+            "runtimeArgs": ["--inspect-brk","--trace-uncaught",  "${workspaceRoot}/node_modules/jest/bin/jest", 
+            //    "./src/geojson_test.ts", 
+                "./src/csv_test.ts", 
+            //    "./src/shapefile_test.ts", 
+                "--runInBand", 
+                "--coverage", "false"
+            ],
             "console": "integratedTerminal",
             "internalConsoleOptions": "neverOpen"
         }

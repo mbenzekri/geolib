@@ -1,0 +1,27 @@
+{
+  "compileOnSave": true,
+  "compilerOptions": {
+    "outDir":"./",
+    "sourceMap": true,
+    "declaration": true,
+    "moduleResolution": "Node",
+    "module": "commonjs",
+    "esModuleInterop": true,
+    "target": "es2018",
+    "typeRoots": [
+      "node_modules/@types"
+    ],
+    "lib": [
+      "es2016",
+      "dom"
+    ]
+  },
+  "include": [
+    "./*.ts"
+  ],
+  "exclude": [
+      "node_modules", "./*_test*.ts"
+  ]
+
+}
+

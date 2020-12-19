@@ -1,23 +1,24 @@
-import * as fs from 'fs'
-import {Shapefile,GeofileFeature, GeofileIndexType} from './index'
+import { getFile } from './fileapi'
+import './fileapi'
+import { Shapefile, GeofileFeature, GeofileIndexType } from './index'
 
-let simpleshp,simpledbf
+let simpleshp, simpledbf
 
 // const simpledbf = fs.readFileSync('./data/simple.dbf').buffer
-async function readfile(filename: string): Promise<ArrayBuffer> {
-    return new Promise((resolve,reject) => {
-        fs.readFile(filename,(err,data)=> {
-            if (err) return reject(Error ('Unable to read simple shapefile'))
-            resolve(data.buffer)
-        })
-    })
-}
+// async function readfile(filename: string): Promise<ArrayBuffer> {
+//     return new Promise((resolve,reject) => {
+//         fs.readFile(filename,(err,data)=> {
+//             if (err) return reject(Error (`Unable to read file ${filename}`))
+//             resolve(data.buffer)
+//         })
+//     })
+// }
 
 describe('Test shapefile.ts', () => {
 
     beforeAll(async () => {
-        simpleshp = await readfile('./data/shp/simple.shp')
-        simpledbf = await readfile('./data/shp/simple.dbf')
+        simpleshp = getFile('./data/shp/simple.shp')
+        simpledbf = getFile('./data/shp/simple.dbf')
     })
     beforeEach(() => null);
 
@@ -26,30 +27,30 @@ describe('Test shapefile.ts', () => {
         expect(shp).not.toBeNull();
         expect(shp.name).toBe('myclass')
     })
-    test('Should fail to create Geojson', () => {
+    test('Should fail to create Shapefile', () => {
         expect(() => { new Shapefile('myclass', null, null) }).toThrow(Error);
     })
 
     test('should parse simple Shapefile', async () => {
-        const shp = new Shapefile('myclass', new Blob([simpleshp]))
+        const shp = new Shapefile('myclass', simpleshp)
         let count = 0
-        for await (const f of shp.parse()) { 
+        for await (const f of shp.parse()) {
             expect(f.geometry).not.toBeNull()
             expect(f.geometry.type).toBe('Point')
-            expect(f.geometry.coordinates).toStrictEqual([[-10,-10],[10,10],[10,-10]][count])
+            expect(f.geometry.coordinates).toStrictEqual([[-10, -10], [10, 10], [10, -10]][count])
             count++
         }
         expect(count).toEqual(3);
     })
 
-    test('should index handle/rtree geojson ', async () => {
-        const shp = new Shapefile('myclass', new Blob([simpleshp]))
+    test('should index handle/rtree shapefile ', async () => {
+        const shp = new Shapefile('myclass', simpleshp)
         expect(shp.count).toBe(0);
         await shp.buildIndexes([])
         expect(shp.count).toBe(3);
     })
-    test('should random access feature Geojson.readFeature()', async () => {
-        const shp = new Shapefile('myclass', new Blob([simpleshp]), new Blob([simpledbf]))
+    test('should random access feature Shapefile.readFeature()', async () => {
+        const shp = new Shapefile('myclass', simpleshp, simpledbf)
         await shp.buildIndexes([])
         for (let i = 0; i < 3; i++) {
             const feature = await shp.readFeature(i)
@@ -58,8 +59,8 @@ describe('Test shapefile.ts', () => {
         }
     })
 
-    test('should random access feature Geojson.getFeature()', async () => {
-        const shp = new Shapefile('myclass', new Blob([simpleshp]), new Blob([simpledbf]))
+    test('should random access feature Shapefile.getFeature()', async () => {
+        const shp = new Shapefile('myclass', simpleshp, simpledbf)
         await shp.buildIndexes([])
         for (let i = 0; i < 3; i++) {
             const feature = await shp.getFeature(i)
@@ -69,8 +70,8 @@ describe('Test shapefile.ts', () => {
         }
     })
 
-    test('should access all features Geojson.forEach()', async () => {
-        const shp = new Shapefile('myclass', new Blob([simpleshp]), new Blob([simpledbf]))
+    test('should access all features Shapefile.forEach()', async () => {
+        const shp = new Shapefile('myclass', simpleshp, simpledbf)
         await shp.buildIndexes([])
         let count = 0
         await shp.forEach({
@@ -83,8 +84,8 @@ describe('Test shapefile.ts', () => {
         expect(count).toBe(3);
     })
 
-    test('should access filtered features Geojson.forEach()', async () => {
-        const shp = new Shapefile('myclass', new Blob([simpleshp]), new Blob([simpledbf]))
+    test('should access filtered features Shapefile.forEach()', async () => {
+        const shp = new Shapefile('myclass', simpleshp, simpledbf)
         await shp.buildIndexes([])
         const features: GeofileFeature[] = []
         await shp.forEach({
@@ -96,64 +97,53 @@ describe('Test shapefile.ts', () => {
         expect(features[0].proj).toBe('EPSG:3857');
     })
 
-    test('should get extent from geofile Geojson.extent()', async () => {
-        const shp = new Shapefile('myclass', new Blob([simpleshp]), new Blob([simpledbf]))
+    test('should get extent from geofile Shapefile.extent()', async () => {
+        const shp = new Shapefile('myclass', simpleshp, simpledbf)
         await shp.buildIndexes([])
         expect(shp.extent).toStrictEqual([-10, -10, 10, 10]);
     })
 
-    test('should access features by bbox Geojson.bbox()', async () => {
-        const shp = new Shapefile('myclass', new Blob([simpleshp]), new Blob([simpledbf]))
+    test('should access features by bbox Shapefile.bbox()', async () => {
+        const shp = new Shapefile('myclass', simpleshp, simpledbf)
         await shp.buildIndexes([])
         const features = await shp.bbox([-20, -20, 20, 0])
         expect(features.length).toBe(2);
     })
 
-    test('should access features by point Geojson.point()', async () => {
-        const shp = new Shapefile('myclass', new Blob([simpleshp]), new Blob([simpledbf]))
+    test('should access features by point Shapefile.point()', async () => {
+        const shp = new Shapefile('myclass', simpleshp, simpledbf)
         await shp.buildIndexes([])
         const features = await shp.point(10, 10)
         expect(features.length).toBe(1);
         expect(features[0].properties.name).toBe('Mary Poppins');
     })
 
-    test('should access features by point Geojson.nearest()', async () => {
-        const shp = new Shapefile('myclass', new Blob([simpleshp]), new Blob([simpledbf]))
+    test('should access features by point Shapefile.nearest()', async () => {
+        const shp = new Shapefile('myclass', simpleshp, simpledbf)
         await shp.buildIndexes([])
         const feature = await shp.nearest(50, 50, 40000000)
         expect(feature).not.toBeNull();
         expect(feature.properties.name).toBe('Mary Poppins');
     })
 
-    test('should attribute search ordered Geojson.search()', async () => {
-        const shp = new Shapefile('myclass', new Blob([simpleshp]), new Blob([simpledbf]))
+    test('should attribute search ordered Shapefile.search()', async () => {
+        const shp = new Shapefile('myclass', simpleshp, simpledbf)
         await shp.buildIndexes([{ attribute: 'name', type: GeofileIndexType.ordered }])
         const features = await shp.search('name', ['Mary Poppins'])
         expect(features.length).toBe(1);
         expect(features[0].properties.name).toBe('Mary Poppins');
     })
 
-    /*
-    test('should attribute search ordered with null Geojson.search()', async () => {
-        const geojson = new Geojson('myclass', new Blob([withnull]))
-        await geojson.buildIndexes([{ attribute: 'name', type: GeofileIndexType.ordered }])
-        const features = await geojson.search('name', ['Mary Poppins'])
-        expect(features.length).toBe(1);
-        expect(features[0].properties.name).toBe('Mary Poppins');
-    })
-    */
-
-
     test('should attribute fuzzy search exact Shapefile.fuzzy()', async () => {
-        const shp = new Shapefile('myclass', new Blob([simpleshp]), new Blob([simpledbf]))
+        const shp = new Shapefile('myclass', simpleshp, simpledbf)
         await shp.buildIndexes([{ attribute: 'name', type: GeofileIndexType.fuzzy }])
         const features = await shp.fuzzy('name', 'Harry Potter')
         expect(features.length).toBe(1);
         expect(features[0].properties.name).toBe('Harry Potter');
     })
 
-    test('should attribute fuzzy search nearby Geojson.fuzzy()', async () => {
-        const shp = new Shapefile('myclass', new Blob([simpleshp]), new Blob([simpledbf]))
+    test('should attribute fuzzy search nearby Shapefile.fuzzy()', async () => {
+        const shp = new Shapefile('myclass', simpleshp, simpledbf)
         await shp.buildIndexes([{ attribute: 'name', type: GeofileIndexType.fuzzy }])
         const features = await shp.fuzzy('name', 'Harri Potter')
         expect(features.length).toBe(1);
@@ -161,24 +151,24 @@ describe('Test shapefile.ts', () => {
     })
 
 
-    test('should attribute prefix search Geojson.prefix()', async () => {
-        const shp = new Shapefile('myclass', new Blob([simpleshp]), new Blob([simpledbf]))
+    test('should attribute prefix search Shapefile.prefix()', async () => {
+        const shp = new Shapefile('myclass', simpleshp, simpledbf)
         await shp.buildIndexes([{ attribute: 'name', type: GeofileIndexType.prefix }])
         const features = await shp.prefix('name', 'Eliz')
         expect(features.length).toBe(1);
         expect(features[0].properties.name).toBe('Queen Elizabeth II');
     })
 
-    test('should attribute multi prefix search Geojson.prefix()', async () => {
-        const shp = new Shapefile('myclass', new Blob([simpleshp]), new Blob([simpledbf]))
+    test('should attribute multi prefix search Shapefile.prefix()', async () => {
+        const shp = new Shapefile('myclass', simpleshp, simpledbf)
         await shp.buildIndexes([{ attribute: 'name', type: GeofileIndexType.prefix }])
         const features = await shp.prefix('name', 'Eliz Quee')
         expect(features.length).toBe(1);
         expect(features[0].properties.name).toBe('Queen Elizabeth II');
     })
 
-    test('should not found found prefix when not all Geojson.prefix()', async () => {
-        const shp = new Shapefile('myclass', new Blob([simpleshp]), new Blob([simpledbf]))
+    test('should not found found prefix when not all Shapefile.prefix()', async () => {
+        const shp = new Shapefile('myclass', simpleshp, simpledbf)
         await shp.buildIndexes([{ attribute: 'name', type: GeofileIndexType.prefix }])
         const features = await shp.prefix('name', 'Eliz DummY')
         expect(features.length).toBe(0);

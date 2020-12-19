@@ -11,7 +11,7 @@ export interface CsvOptions {
     lat?: number | string,
     wkt?: number | string,
     skip?: number,
-    separator?: number | string ,
+    separator?: number | string,
     comment?: number | string,
     quote?: number | string,
     escape?: number | string,
@@ -32,7 +32,7 @@ export class Csv extends Geofile {
         this.file = datafile
         this.options = {
             header: false,
-            colnames: Array.from({ length: 250 }).map((v,i) => `col${i}`),
+            colnames: Array.from({ length: 250 }).map((v, i) => `col${i}`),
             lon: null,
             lat: null,
             wkt: null,
@@ -44,12 +44,14 @@ export class Csv extends Geofile {
             maxscan: 16,
             limit: Infinity
         }
-        Object.assign(this.options,opts)
-        // change all chars expressed as string to charCode (byte)
-        ;['separator','comment','quote','escape',].forEach(opt => {
-            if (typeof this.options[opt] === 'string') this.options[opt] = this.options[opt].charCodeAt(0)
-        })
- }
+        Object.assign(this.options, opts)
+            // change all chars expressed as string to charCode (byte)
+            ;['separator', 'comment', 'quote', 'escape',].forEach(opt => {
+                if (typeof this.options[opt] === 'string') this.options[opt] = this.options[opt].charCodeAt(0)
+            })
+    }
+
+    get type()  { return 'csv' }
 
     get parser(): GeofileParser {
         return new CsvParser(this.file, this.options)
@@ -60,15 +62,15 @@ export class Csv extends Geofile {
         }
         this.assertOptions()
     }
-    async close() { return  }
+    async close() { return }
 
     async readFeature(rank: number | GeofileHandle): Promise<GeofileFeature> {
         try {
             const handle = (typeof rank === 'number') ? this.getHandle(rank) : rank;
-            const line = await this.file.readText(handle.pos, handle.len)
-            const feature = CsvParser.build(line,handle, this.options)
+            const line = await this.file.text(handle.pos, handle.len)
+            const feature = CsvParser.build(line, handle, this.options)
             return feature
-        } catch (err) { 
+        } catch (err) {
             throw Error(`Csv.readFeature(): unable to read feature due to ${err.message}`)
         }
     }
@@ -78,33 +80,32 @@ export class Csv extends Geofile {
             const hmin = this.getHandle(rank);
             const hmax = this.getHandle(rank + limit - 1);
             const length = (hmax.pos - hmin.pos + hmax.len);
-            const lines = await this.file.read(hmin.pos,length)
-            const dv = new DataView(lines)
+            const dv = await this.file.dataview(hmin.pos, length)
             const features = [];
             for (let i = 0; i < limit; i++) {
                 const handle = this.getHandle(rank + i)
-                const line = dv.getUtf8(handle.pos - hmin.pos,handle.len)
-                const feature: GeofileFeature = CsvParser.build(line,handle,this.options)
+                const line = dv.getUtf8(handle.pos - hmin.pos, handle.len)
+                const feature: GeofileFeature = CsvParser.build(line, handle, this.options)
                 features.push(feature)
-            }  
+            }
             return features
-        } catch (err) { 
+        } catch (err) {
             throw Error(`Csv.readFeatures(): unable to read features due to ${err.message}`)
         }
     }
 
     private assertOptions() {
         // change all colnames expressed as number to index in colnames
-        ['lon','lat','wkt'].forEach(opt => {
+        ['lon', 'lat', 'wkt'].forEach(opt => {
             if (typeof this.options[opt] === 'string') this.options[opt] = this.options.colnames.indexOf(this.options[opt])
         })
-        
+
         const colcount = this.options.colnames.length
-        if (this.options.lon !== null && (this.options.lon < 0 || this.options.lon >= colcount)) 
+        if (this.options.lon !== null && (this.options.lon < 0 || this.options.lon >= colcount))
             throw Error(`incorrect option Csv lon: lon colname not found or index  out of range`)
-        if (this.options.lat !== null && (this.options.lat < 0 || this.options.lat >= colcount)) 
+        if (this.options.lat !== null && (this.options.lat < 0 || this.options.lat >= colcount))
             throw Error(`incorrect option Csv lat: lat colname not found or index  out of range`)
-        if (this.options.wkt !== null && (this.options.wkt < 0 || this.options.wkt >= colcount)) 
+        if (this.options.wkt !== null && (this.options.wkt < 0 || this.options.wkt >= colcount))
             throw Error(`incorrect option Csv wkt: WKT not yet implemented !`)
     }
 

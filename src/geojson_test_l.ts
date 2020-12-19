@@ -1,5 +1,5 @@
 import { Geojson } from './geojson'
-import { NodeFile as File } from './NodeFile'
+import { File } from './NodeFile'
 let geojson:Geojson = null;
 const file = new File('c:/Work/data/france/communes.geojson','application/json')
 describe('Test geojson.ts for large files', () => {

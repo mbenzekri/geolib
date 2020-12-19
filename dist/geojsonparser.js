@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.GeojsonParser = void 0;
 const geofile_1 = require("./geofile");
+const polyfill_1 = require("./polyfill");
 const ocurly = '{'.charCodeAt(0);
 const ccurly = '}'.charCodeAt(0);
 const obracket = '['.charCodeAt(0);
@@ -167,7 +168,7 @@ class GeojsonParser extends geofile_1.GeofileParser {
         if (isfeature) {
             this.curfeat = null;
             const buffer = Uint8Array.from(item.value);
-            const json = buffer.getUtf8(0, item.value.length);
+            const json = polyfill_1.toUtf8(buffer, 0, item.value.length);
             try {
                 const feature = JSON.parse(json);
                 feature.rank = this.expected();

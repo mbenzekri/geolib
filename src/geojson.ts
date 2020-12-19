@@ -17,6 +17,8 @@ export class Geojson extends Geofile {
         this.file = datafile
     }
 
+    get type()  { return 'geojson' }
+
     get parser(): GeofileParser { return new GeojsonParser(this.file) }
 
     async open(): Promise<any> { return }
@@ -26,10 +28,10 @@ export class Geojson extends Geofile {
     async readFeature(rank: number): Promise<GeofileFeature> {
         const handle =  this.getHandle(rank);
         try {
-            const json = await this.file.readText(handle.pos,handle.len)
+            const json = await this.file.text(handle.pos,handle.len)
             return JSON.parse(json)
         } catch (e) {
-            throw new Error(`Geojson.readFeature(): unable to read feature due to ${ e.message | e.toString()}`)
+            throw new Error(`Geojson.readFeature(): unable to read feature due to ${ e.toString()}`)
         }
     }
 
@@ -38,7 +40,7 @@ export class Geojson extends Geofile {
         const hmax = this.getHandle(rank + limit - 1);
         const length = (hmax.pos  - hmin.pos + hmax.len);
         try {
-            const array =  await this.file.read(hmin.pos, hmin.pos + length)
+            const array =  await this.file.arrayBuffer(hmin.pos, hmin.pos + length)
             const dv = new DataView(array)
             const features = [];
             for (let i = 0; i < limit; i++) {
